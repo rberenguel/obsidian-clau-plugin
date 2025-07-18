@@ -19,18 +19,105 @@
 	margin-top: 4px;
 }
 
-/* No longer needed, as the HR element will be removed. */
-/* .clau-suggestion-hr { ... } */
+/*
+ * Aggressive CSS Reset for the rendered markdown snippet.
+ * This explicitly neutralizes disruptive styles like margins and list formatting.
+ */
+.clau-suggestion-context,
+.clau-suggestion-context * {
+	/* Reset all properties first */
+	all: unset;
+
+	/* Explicitly override physical and logical properties with !important */
+	margin: 0 !important;
+	padding: 0 !important;
+	margin-block: 0 !important;
+	margin-inline: 0 !important;
+
+	display: inline-block !important;
+
+	/* Remove list bullets/numbers */
+	list-style-type: none !important;
+
+	/* Ensure consistent text appearance */
+	font: inherit !important;
+	color: inherit !important;
+	text-decoration: none !important;
+	background: transparent !important;
+
+	margin-block-start: 0em !important;
+
+	margin-block-end: 0em !important;
+
+	margin-inline-start: 0px !important;
+
+	margin-inline-end: 0px !important;
+	white-space: normal !important;
+}
+
+.clau-suggestion-context .task-list-item-checkbox,
+.clau-suggestion-context .cm-iconize-icon,
+.clau-suggestion-context svg {
+	display: none !important;
+	width: 0 !important;
+	height: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
+.clau-suggestion-item .clau-suggestion-context ul,
+.clau-suggestion-item .clau-suggestion-context blockquote {
+	all: unset !important;
+	display: inline !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: none !important;
+	white-space: normal !important;
+}
+
+/* 4. Reset pseudo-elements which can also add spacing or content */
+.clau-suggestion-item .clau-suggestion-context ul::before,
+.clau-suggestion-item .clau-suggestion-context ul::after,
+.clau-suggestion-item .clau-suggestion-context blockquote::before,
+.clau-suggestion-item .clau-suggestion-context blockquote::after {
+	all: unset !important;
+	display: none !important;
+	content: "" !important;
+}
+
+/*
+ * Force block elements that Obsidian's renderer creates to display inline.
+ */
+.clau-suggestion-context div,
+.clau-suggestion-context p,
+.clau-suggestion-context h1,
+.clau-suggestion-context h2,
+.clau-suggestion-context h3,
+.clau-suggestion-context h4,
+.clau-suggestion-context h5,
+.clau-suggestion-context h6,
+.clau-suggestion-context ul,
+.clau-suggestion-context ol,
+.clau-suggestion-context li,
+.clau-suggestion-context blockquote {
+	display: inline;
+	margin: 0 !important;
+	padding: 0 !important;
+}
 
 .clau-suggestion-context {
-	font-size: var(--font-ui-smaller);
-	color: var(--text-faint);
-	margin-top: 8px;
+	font-size: var(--font-ui-smaller) !important;
+	color: var(--text-faint) !important;
+	margin-top: 8px !important;
 }
 
 .clau-suggestion-highlight {
-	border: 2px solid rgb(from var(--text-highlight-bg) r g b / 0.5); /* Make it more transparent */
-	padding: 0.1em 0.3em 0.1em 0.3em;
-	border-radius: 0.2em;
-	color: var(--text-normal);
+	border: 2px solid rgb(from var(--text-highlight-bg) r g b / 0.5) !important;
+	padding: 0.1em 0.3em 0.1em 0.3em !important;
+	border-radius: 0.2em !important;
+	color: var(--text-normal) !important;
+}
+
+mark.clau-suggestion-highlight {
+	all: unset;
 }
