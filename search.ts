@@ -1,12 +1,14 @@
 import { TFile, Vault } from "obsidian";
 
+import { ISearchProvider } from "./search-provider";
+
 export interface SearchResult {
 	title: string;
 	path: string;
 	context?: string;
 }
 
-export class SearchIndex {
+export class SearchIndex implements ISearchProvider {
 	private index: Map<string, SearchResult[]> = new Map();
 	private vault: Vault;
 
@@ -72,11 +74,13 @@ export class SearchIndex {
 			if (resultNotes === null) {
 				resultNotes = notesForWord;
 			} else {
-				const currentPaths = new Set(notesForWord.map(n => n.path));
-				resultNotes = resultNotes.filter(r => currentPaths.has(r.path));
+				const currentPaths = new Set(notesForWord.map((n) => n.path));
+				resultNotes = resultNotes.filter((r) =>
+					currentPaths.has(r.path),
+				);
 			}
 		}
-		
+
 		const results = resultNotes || [];
 
 		const resultsWithContext = await Promise.all(
@@ -84,31 +88,44 @@ export class SearchIndex {
 				const file = this.vault.getAbstractFileByPath(note.path);
 				if (file instanceof TFile) {
 					const content = await this.vault.read(file);
-					const context = this.findContext(content, Array.from(queryWords));
+					const context = this.findContext(
+						content,
+						Array.from(queryWords),
+					);
 					return { ...note, context };
 				}
 				return note;
-			})
+			}),
 		);
 
 		return [...resultsWithContext, ...results.slice(10)];
 	}
 
-	private findContext(content: string, queryWords: string[]): string | undefined {
+	private findContext(
+		content: string,
+		queryWords: string[],
+	): string | undefined {
 		const lines = content.split("\n");
 		for (const line of lines) {
 			const lowerLine = line.toLowerCase();
-			const firstMatch = queryWords.find(word => lowerLine.includes(word));
+			const firstMatch = queryWords.find((word) =>
+				lowerLine.includes(word),
+			);
 
 			if (firstMatch) {
 				const words = line.trim().split(/\s+/);
-				const lowerWords = words.map(w => w.toLowerCase());
-				const matchIndex = lowerWords.findIndex(word => word.includes(firstMatch));
+				const lowerWords = words.map((w) => w.toLowerCase());
+				const matchIndex = lowerWords.findIndex((word) =>
+					word.includes(firstMatch),
+				);
 
 				if (matchIndex !== -1) {
 					const windowSize = 5;
 					const startIndex = Math.max(0, matchIndex - windowSize);
-					const endIndex = Math.min(words.length, matchIndex + windowSize + 1);
+					const endIndex = Math.min(
+						words.length,
+						matchIndex + windowSize + 1,
+					);
 
 					let snippet = words.slice(startIndex, endIndex).join(" ");
 					if (startIndex > 0) {
@@ -141,8 +158,8 @@ export class SearchIndex {
 			.filter((word) => word.length > 2);
 		return new Set(words);
 	}
-    
-    getSize(): number {
+
+	getSize(): number {
 		return this.index.size;
 	}
 }

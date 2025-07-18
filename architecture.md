@@ -42,8 +42,21 @@ This was a third attempt at prefix matching, designed to be memory-efficient.
 - **Outcome: Failure**
     -   **Reason:** Unacceptable UI latency. While memory-efficient, this approach shifted the performance bottleneck from memory to CPU. Iterating over tens of thousands of unique words on every single keystroke was too slow, resulting in a noticeable lag between typing and seeing results.
 
-## Conclusion
+## V5: MiniSearch Library (Recommended)
 
-All attempts at providing prefix search functionality have so far failed due to either excessive memory usage (Trie, Prefix Map) or unacceptable CPU latency (Index-Key Scanning). The core challenge is creating an index that supports partial matching without storing a massive number of keys or requiring a full scan of the dictionary on each input.
+After multiple failed attempts to build a custom prefix/fuzzy search index, the decision was made to use a dedicated, third-party library.
 
-The current, stable architecture (V1) prioritizes stability, low memory usage, and a responsive UI over the "search-as-you-type" feature. Future work on prefix searching would require a much more sophisticated, performance-tuned data structure or a hybrid approach.
+- **Design:** Integrate the `minisearch` library, a feature-rich, client-side search index. It handles indexing, prefix search, fuzzy matching, and result boosting internally. Our code is now a lightweight wrapper around this powerful library.
+- **Search:** Delegate all search operations to the `minisearch` instance. The query `minisearch.search(query, { prefix: true, fuzzy: 0.2 })` provides all desired features out-of-the-box.
+- **Key Learning:** The initial integration of `minisearch` failed due to extreme memory pressure. The root cause was a misconfiguration: the entire `content` of every note was being passed to `storeFields`. The correct approach is to **index** the `content` field but only **store** the fields required for display (e.g., `title`, `path`). This prevents the library from holding the entire vault's content in memory.
+- **Key Learning 2:** Startup performance was severely impacted by attempting to index non-markdown files (e.g., images). The indexing process must strictly filter for `.md` files to avoid reading and processing binary data, which causes extreme memory and CPU load.
+- **Pros:**
+    -   **Feature-Rich:** Provides prefix search, fuzzy (typo-tolerant) search, and result boosting with no custom implementation effort.
+    -   **High Performance:** When configured correctly, `minisearch` is highly optimized for this exact use case, balancing memory usage and search speed effectively.
+    -   **Maintainable:** Offloads the most complex part of the plugin to a well-maintained external library, simplifying our codebase significantly.
+- **Cons:**
+    -   **External Dependency:** Adds a new dependency to the project. (This is a very minor "con" given the benefits).
+
+---
+
+## V4: Index-Key Scanning - *Failed*

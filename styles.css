@@ -1,39 +1,36 @@
 /* styles.css */
 
 .clau-suggestion-item {
-  flex-direction: column;
-  align-items: stretch;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  padding: 10px 12px;
+	flex-direction: column;
+	align-items: stretch;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--background-modifier-border); /* Separator between items */
 }
 
 .clau-suggestion-title {
-  font-weight: 600;
-  font-size: var(--font-ui-normal);
+	font-weight: 600;
+	font-size: var(--font-ui-normal);
 }
 
 .clau-suggestion-path {
-  font-size: var(--font-ui-smaller);
-  color: var(--text-muted);
-  display: block;
-  margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	display: block;
+	margin-top: 4px;
 }
 
-.clau-suggestion-hr {
-  border: none;
-  border-top: 1px solid var(--background-modifier-border);
-  margin: 8px 0;
-}
+/* No longer needed, as the HR element will be removed. */
+/* .clau-suggestion-hr { ... } */
 
 .clau-suggestion-context {
-  font-size: var(--font-ui-small);
-  color: var(--text-faint);
-  font-style: italic;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	margin-top: 8px;
 }
 
 .clau-suggestion-highlight {
-  background-color: var(--text-highlight-bg);
-  color: var(--text-normal);
+	border: 2px solid rgb(from var(--text-highlight-bg) r g b / 0.5); /* Make it more transparent */
+	border-radius: 0.1em 0.3em 0.1em 0.3em;
+	padding: 0.1em;
+	color: var(--text-normal);
 }

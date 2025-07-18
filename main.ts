@@ -1,89 +1,140 @@
-import {
-	App,
-	Plugin,
-	SuggestModal,
-	TFile
-} from "obsidian";
+import { App, Plugin, SuggestModal, TFile } from "obsidian";
 import { SearchIndex, SearchResult } from "./search";
+import { ISearchProvider } from "./search-provider";
+import { ObsidianSearchProvider } from "./obsidian-search";
+import { MiniSearchProvider } from "./minisearch-provider";
 
 export default class QuickSwitcherPlusPlugin extends Plugin {
-	searchIndex: SearchIndex;
+	customSearchIndex: SearchIndex;
+	obsidianSearchProvider: ObsidianSearchProvider;
+	miniSearchProvider: MiniSearchProvider;
 
 	async onload() {
-		this.searchIndex = new SearchIndex(this.app.vault);
+		this.customSearchIndex = new SearchIndex(this.app.vault);
+		this.obsidianSearchProvider = new ObsidianSearchProvider(this.app);
+		this.miniSearchProvider = new MiniSearchProvider(this.app);
 
-		await this.searchIndex.build();
-		console.log(`Clau: Index built with ${this.searchIndex.getSize()} unique words.`);
+		// await this.customSearchIndex.build();
+		// console.log(`Clau (Custom): Index built with ${this.customSearchIndex.getSize()} unique words.`);
+
+		await this.miniSearchProvider.build();
 
 		this.addCommand({
-			id: "open-clau-switcher",
-			name: "Open Clau Quick Switcher",
+			id: "open-clau-minisearch",
+			name: "Open Search",
 			callback: () => {
-				new ClauModal(this.app, this.searchIndex).open();
+				new ClauModal(
+					this.app,
+					this.miniSearchProvider,
+					"Search... (prefix with '.' for fuzzy search)",
+				).open();
 			},
 		});
 
 		this.addCommand({
 			id: "rebuild-clau-index",
-			name: "Re-build Clau search index",
+			name: "Re-build index",
 			callback: async () => {
-				await this.searchIndex.build();
-				console.log(`Clau: Index has been manually rebuilt with ${this.searchIndex.getSize()} unique words.`);
-			}
+				// await this.customSearchIndex.build();
+				await this.miniSearchProvider.build();
+				console.log(
+					`Clau: MiniSearch index has been manually rebuilt.`,
+				);
+			},
 		});
 
-		this.registerEvent(this.app.vault.on('create', (file) => {
-			if (file instanceof TFile) {
-				this.searchIndex.add(file);
-			}
-		}));
+		/*
+		this.addCommand({
+			id: "open-clau-custom-search",
+			name: "Open Clau (Custom Search - Legacy)",
+			callback: () => {
+				new ClauModal(this.app, this.customSearchIndex, "Search by file name or content (full words)...").open();
+			},
+		});
+		*/
 
-		this.registerEvent(this.app.vault.on('delete', (file) => {
-			if (file instanceof TFile) {
-				this.searchIndex.remove(file);
-			}
-		}));
+		this.addCommand({
+			id: "open-clau-obsidian-search",
+			name: "Open Clau (Obsidian Search - Experimental)",
+			callback: () => {
+				new ClauModal(
+					this.app,
+					this.obsidianSearchProvider,
+					"Search using Obsidian's engine...",
+				).open();
+			},
+		});
 
-		this.registerEvent(this.app.vault.on('modify', (file) => {
-			if (file instanceof TFile) {
-				this.searchIndex.update(file);
-			}
-		}));
+		// Register events for the active providers
+		this.registerEvent(
+			this.app.vault.on("create", (file) => {
+				if (file instanceof TFile && file.extension === "md") {
+					// this.customSearchIndex.add(file);
+					this.miniSearchProvider.add(file);
+				}
+			}),
+		);
+		this.registerEvent(
+			this.app.vault.on("delete", (file) => {
+				if (file instanceof TFile && file.extension === "md") {
+					// this.customSearchIndex.remove(file);
+					this.miniSearchProvider.remove(file);
+				}
+			}),
+		);
+		this.registerEvent(
+			this.app.vault.on("modify", (file) => {
+				if (file instanceof TFile && file.extension === "md") {
+					// this.customSearchIndex.update(file);
+					this.miniSearchProvider.update(file);
+				}
+			}),
+		);
 	}
 }
 
 class ClauModal extends SuggestModal<SearchResult> {
-	private searchIndex: SearchIndex;
+	private searchProvider: ISearchProvider;
 	private query: string = "";
 
-	constructor(app: App, searchIndex: SearchIndex) {
+	constructor(
+		app: App,
+		searchProvider: ISearchProvider,
+		placeholder: string,
+	) {
 		super(app);
-		this.searchIndex = searchIndex;
-		this.setPlaceholder("Search by file name or content (full words)...");
+		this.searchProvider = searchProvider;
+		this.setPlaceholder(placeholder);
 	}
 
 	getSuggestions(query: string): Promise<SearchResult[]> {
 		this.query = query;
-		return this.searchIndex.search(query);
+		return this.searchProvider.search(query);
 	}
 
 	renderSuggestion(result: SearchResult, el: HTMLElement) {
-		el.empty(); // Clear previous content
+		el.classList.add("clau-suggestion-item");
+		el.empty();
 
 		const titleEl = el.createDiv({ cls: "clau-suggestion-title" });
 		this.highlightText(titleEl, result.title, this.query);
 
-		el.createEl("small", { text: result.path, cls: "clau-suggestion-path" });
+		el.createEl("small", {
+			text: result.path,
+			cls: "clau-suggestion-path",
+		});
 
 		if (result.context) {
-			el.createEl("hr", { cls: "clau-suggestion-hr" });
 			const contextEl = el.createDiv({ cls: "clau-suggestion-context" });
 			this.highlightText(contextEl, result.context, this.query);
 		}
 	}
 
 	private highlightText(element: HTMLElement, text: string, query: string) {
-		const queryWords = query.toLowerCase().split(" ").filter(w => w.length > 0);
+		const queryWords = query
+			.toLowerCase()
+			.split(" ")
+			.filter((w) => w.length > 0);
 		if (queryWords.length === 0) {
 			element.setText(text);
 			return;
@@ -93,8 +144,11 @@ class ClauModal extends SuggestModal<SearchResult> {
 		const parts = text.split(regex);
 
 		for (const part of parts) {
-			if (queryWords.some(word => part.toLowerCase() === word)) {
-				element.createSpan({ text: part, cls: "clau-suggestion-highlight" });
+			if (queryWords.some((word) => part.toLowerCase() === word)) {
+				element.createSpan({
+					text: part,
+					cls: "clau-suggestion-highlight",
+				});
 			} else {
 				element.appendText(part);
 			}
