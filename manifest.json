@@ -1,0 +1,10 @@
+{
+	"id": "clau",
+	"name": "Clau",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "A quick switcher with fuzzy search across all notes.",
+	"author": "Your Name",
+	"authorUrl": "https://your-website.com",
+	"isDesktopOnly": false
+}

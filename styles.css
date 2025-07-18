@@ -1,0 +1,39 @@
+/* styles.css */
+
+.clau-suggestion-item {
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+}
+
+.clau-suggestion-title {
+  font-weight: 600;
+  font-size: var(--font-ui-normal);
+}
+
+.clau-suggestion-path {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+.clau-suggestion-hr {
+  border: none;
+  border-top: 1px solid var(--background-modifier-border);
+  margin: 8px 0;
+}
+
+.clau-suggestion-context {
+  font-size: var(--font-ui-small);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.clau-suggestion-highlight {
+  background-color: var(--text-highlight-bg);
+  color: var(--text-normal);
+}
