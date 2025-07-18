@@ -1,17 +1,14 @@
 import { App, Plugin, SuggestModal, TFile } from "obsidian";
 import { SearchIndex, SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
-import { ObsidianSearchProvider } from "./obsidian-search";
 import { MiniSearchProvider } from "./minisearch-provider";
 
 export default class QuickSwitcherPlusPlugin extends Plugin {
 	customSearchIndex: SearchIndex;
-	obsidianSearchProvider: ObsidianSearchProvider;
 	miniSearchProvider: MiniSearchProvider;
 
 	async onload() {
 		this.customSearchIndex = new SearchIndex(this.app.vault);
-		this.obsidianSearchProvider = new ObsidianSearchProvider(this.app);
 		this.miniSearchProvider = new MiniSearchProvider(this.app);
 
 		// await this.customSearchIndex.build();
@@ -52,18 +49,6 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			},
 		});
 		*/
-
-		this.addCommand({
-			id: "open-clau-obsidian-search",
-			name: "Open Clau (Obsidian Search - Experimental)",
-			callback: () => {
-				new ClauModal(
-					this.app,
-					this.obsidianSearchProvider,
-					"Search using Obsidian's engine...",
-				).open();
-			},
-		});
 
 		// Register events for the active providers
 		this.registerEvent(
