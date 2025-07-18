@@ -60,7 +60,7 @@ export class SearchIndex implements ISearchProvider {
 
 	async search(query: string): Promise<SearchResult[]> {
 		const queryWords = this.getWords(query);
-		if (queryWords.length === 0) {
+		if (queryWords.size === 0) {
 			return this.getAllNotes();
 		}
 

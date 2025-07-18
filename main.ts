@@ -11,9 +11,6 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 		this.customSearchIndex = new SearchIndex(this.app.vault);
 		this.miniSearchProvider = new MiniSearchProvider(this.app);
 
-		// await this.customSearchIndex.build();
-		// console.log(`Clau (Custom): Index built with ${this.customSearchIndex.getSize()} unique words.`);
-
 		await this.miniSearchProvider.build();
 
 		this.addCommand({
@@ -39,16 +36,6 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 				);
 			},
 		});
-
-		/*
-		this.addCommand({
-			id: "open-clau-custom-search",
-			name: "Open Clau (Custom Search - Legacy)",
-			callback: () => {
-				new ClauModal(this.app, this.customSearchIndex, "Search by file name or content (full words)...").open();
-			},
-		});
-		*/
 
 		// Register events for the active providers
 		this.registerEvent(

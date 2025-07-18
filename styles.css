@@ -30,7 +30,7 @@
 
 .clau-suggestion-highlight {
 	border: 2px solid rgb(from var(--text-highlight-bg) r g b / 0.5); /* Make it more transparent */
-	border-radius: 0.1em 0.3em 0.1em 0.3em;
-	padding: 0.1em;
+	padding: 0.1em 0.3em 0.1em 0.3em;
+	border-radius: 0.2em;
 	color: var(--text-normal);
 }
