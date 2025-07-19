@@ -1,15 +1,41 @@
-import { App, Plugin, SuggestModal, TFile, MarkdownRenderer } from "obsidian";
+import {
+	App,
+	Plugin,
+	SuggestModal,
+	TFile,
+	MarkdownRenderer,
+	PluginSettingTab,
+	Setting,
+} from "obsidian";
 import { SearchIndex, SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
 import { MiniSearchProvider } from "./minisearch-provider";
 
+interface ClauSettings {
+	ignoredFolders: string;
+	privateTags: string;
+	privateFolders: string;
+}
+
+const DEFAULT_SETTINGS: ClauSettings = {
+	ignoredFolders: "",
+	privateTags: "",
+	privateFolders: "",
+};
+
 export default class QuickSwitcherPlusPlugin extends Plugin {
 	customSearchIndex: SearchIndex;
 	miniSearchProvider: MiniSearchProvider;
+	settings: ClauSettings;
 
 	async onload() {
+		await this.loadSettings();
+
 		this.customSearchIndex = new SearchIndex(this.app.vault);
-		this.miniSearchProvider = new MiniSearchProvider(this.app);
+		this.miniSearchProvider = new MiniSearchProvider(
+			this.app,
+			this.settings,
+		);
 
 		await this.miniSearchProvider.build();
 
@@ -21,7 +47,8 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 					this.app,
 					this.miniSearchProvider,
 					this,
-					"Search... (prefix with '.' for fuzzy search)",
+					"search? also: ? for private, ! to ignore privacy, space for title, . for fuzzy, -term, -/path",
+					this.settings,
 				).open();
 			},
 		});
@@ -63,6 +90,84 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 				}
 			}),
 		);
+
+		this.addSettingTab(new ClauSettingTab(this.app, this));
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData(),
+		);
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+		// Re-build index after saving settings
+		await this.miniSearchProvider.build();
+	}
+}
+
+class ClauSettingTab extends PluginSettingTab {
+	plugin: QuickSwitcherPlusPlugin;
+
+	constructor(app: App, plugin: QuickSwitcherPlusPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+
+		containerEl.empty();
+
+		containerEl.createEl("h2", { text: "Clau Settings" });
+
+		new Setting(containerEl)
+			.setName("Ignored folders")
+			.setDesc(
+				"A comma-separated list of folder paths to ignore. Any file path starting with one of these will be excluded from the search.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g. templates/,private/")
+					.setValue(this.plugin.settings.ignoredFolders)
+					.onChange(async (value) => {
+						this.plugin.settings.ignoredFolders = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Private tags")
+			.setDesc(
+				"A comma-separated list of tags. Notes containing any of these tags will not show a preview in the search results. The tag should not include the '#'.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g. private,secret")
+					.setValue(this.plugin.settings.privateTags)
+					.onChange(async (value) => {
+						this.plugin.settings.privateTags = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Private folders")
+			.setDesc(
+				"A comma-separated list of folder paths. Notes in these folders will not show a preview.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g. journals/,personal/")
+					.setValue(this.plugin.settings.privateFolders)
+					.onChange(async (value) => {
+						this.plugin.settings.privateFolders = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 	}
 }
 
@@ -70,22 +175,38 @@ class ClauModal extends SuggestModal<SearchResult> {
 	private searchProvider: ISearchProvider;
 	private query: string = "";
 	private plugin: Plugin;
+	private settings: ClauSettings;
+	private isPrivateSearch: boolean = false;
+	private ignorePrivacy: boolean = false;
 
 	constructor(
 		app: App,
 		searchProvider: ISearchProvider,
 		plugin: Plugin,
 		placeholder: string,
+		settings: ClauSettings,
 	) {
 		super(app);
 		this.searchProvider = searchProvider;
 		this.setPlaceholder(placeholder);
 		this.plugin = plugin;
+		this.settings = settings;
 	}
 
 	getSuggestions(query: string): Promise<SearchResult[]> {
 		this.query = query;
-		return this.searchProvider.search(query);
+		this.isPrivateSearch = false;
+		this.ignorePrivacy = false;
+
+		if (query.startsWith("?")) {
+			this.isPrivateSearch = true;
+			this.query = query.substring(1);
+		} else if (query.startsWith("!")) {
+			this.ignorePrivacy = true;
+			this.query = query.substring(1);
+		}
+
+		return this.searchProvider.search(this.query);
 	}
 
 	renderSuggestion(result: SearchResult, el: HTMLElement) {
@@ -101,18 +222,84 @@ class ClauModal extends SuggestModal<SearchResult> {
 			cls: "clau-suggestion-path",
 		});
 
+		// Always show context if privacy is ignored
+		if (this.ignorePrivacy) {
+			if (result.context) {
+				const contextEl = el.createDiv({
+					cls: "clau-suggestion-context",
+				});
+				MarkdownRenderer.render(
+					this.app,
+					result.context,
+					contextEl,
+					result.path,
+					this.plugin,
+				);
+				this.highlightRenderedHTML(contextEl, this.query);
+			}
+			return;
+		}
+
+		// Handle private search mode
+		if (this.isPrivateSearch) {
+			const wrapper = el.createDiv({
+				cls: "clau-suggestion-context clau-private-context",
+			});
+			wrapper.createSpan({
+				cls: "clau-private-block",
+				text: "Context hidden",
+			});
+			wrapper.createSpan({
+				text: " (private search)",
+			});
+			return;
+		}
+
+		// Default behavior: check settings
+		const privateTags = this.settings.privateTags
+			.split(",")
+			.map((t) => t.trim())
+			.filter((t) => t.length > 0);
+		const privateFolders = this.settings.privateFolders
+			.split(",")
+			.map((f) => f.trim())
+			.filter((f) => f.length > 0);
+
+		const fileCache = this.app.metadataCache.getCache(result.path);
+		const hasPrivateTag =
+			fileCache?.tags?.some((t) =>
+				privateTags.includes(t.tag.substring(1)),
+			) ?? false;
+		const inPrivateFolder = privateFolders.some((f) =>
+			result.path.startsWith(f),
+		);
+
 		if (result.context) {
-			const contextEl = el.createDiv({ cls: "clau-suggestion-context" });
-			// 1. Render clean markdown first
-			MarkdownRenderer.render(
-				this.app,
-				result.context,
-				contextEl,
-				result.path,
-				this.plugin,
-			);
-			// 2. Highlight the resulting HTML
-			this.highlightRenderedHTML(contextEl, this.query);
+			if (hasPrivateTag || inPrivateFolder) {
+				const reason = hasPrivateTag ? "private tag" : "private folder";
+				const wrapper = el.createDiv({
+					cls: "clau-suggestion-context clau-private-context",
+				});
+				wrapper.createSpan({
+					cls: "clau-private-block",
+					text: "Context hidden",
+				});
+				wrapper.createSpan({
+					text: ` (${reason})`,
+				});
+			} else {
+				const contextEl = el.createDiv({
+					cls: "clau-suggestion-context",
+				});
+				MarkdownRenderer.render(
+					this.app,
+					result.context,
+					contextEl,
+					result.path,
+					this.plugin,
+				);
+				this.highlightRenderedHTML(contextEl, this.query);
+			}
 		}
 	}
 

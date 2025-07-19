@@ -11,8 +11,16 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
 
 ## How to Use
 
-1.  **Search:** Use the command palette (`Ctrl/Cmd + P`) and search for "Clau: Search". This provides exact word search and fuzzy search capabilities via MiniSearch.
-2.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the MiniSearch index by searching for "Clau: Re-build Clau index" in the command palette.
+1.  **Open Search:** Use the command palette (`Ctrl/Cmd + P`) and search for "Clau: Open Search".
+2.  **Type your query:**
+    *   **Private Search (`?`):** Start your query with a question mark to hide all context previews.
+    *   **Ignore Privacy (`!`):** Start your query with an exclamation mark to show all context previews, even for notes in private folders or with private tags.
+    *   **Title-Only Search (` `):** Start your query with a space to search only note titles.
+    *   **Fuzzy Search (`.`):** Start your query with a dot to enable typo-tolerant fuzzy matching.
+    *   **Term Exclusion (`-`):** Add a hyphen before a word to exclude notes containing it.
+    *   **Path Exclusion (`-/`):** Add `-/` before a path to exclude notes from that folder.
+    *   **Modifiers can be combined:** For example, `! . project spec -wip` will perform a fuzzy, title-only search for "project spec" while ignoring privacy and excluding notes with "wip".
+3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette.
 
 ## Why not use [OmniSearch](https://github.com/scambier/obsidian-omnisearch)?
 
