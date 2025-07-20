@@ -4,7 +4,7 @@
 	"version": "0.2.0",
 	"minAppVersion": "0.15.0",
 	"description": "A quick switcher with fuzzy search across all notes.",
-	"author": "Your Name",
-	"authorUrl": "https://your-website.com",
+	"author": "Ruben Berenguel",
+	"authorUrl": "https://www.mostlymaths.net",
 	"isDesktopOnly": false
 }
