@@ -273,10 +273,20 @@ class ClauModal extends SuggestModal<SearchResult> {
 		const inPrivateFolder = privateFolders.some((f) =>
 			result.path.startsWith(f),
 		);
+		const privacyFrontmatter = fileCache?.frontmatter?.privacy;
+		const hasRobaEstesaPrivacy =
+			Array.isArray(privacyFrontmatter) && privacyFrontmatter.length > 0;
 
 		if (result.context) {
-			if (hasPrivateTag || inPrivateFolder) {
-				const reason = hasPrivateTag ? "private tag" : "private folder";
+			if (hasPrivateTag || inPrivateFolder || hasRobaEstesaPrivacy) {
+				let reason = "private note";
+				if (hasPrivateTag) {
+					reason = "private tag";
+				} else if (inPrivateFolder) {
+					reason = "private folder";
+				} else if (hasRobaEstesaPrivacy) {
+					reason = "Roba Estesa privacy";
+				}
 				const wrapper = el.createDiv({
 					cls: "clau-suggestion-context clau-private-context",
 				});
