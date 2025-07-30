@@ -3,8 +3,6 @@ import MiniSearch from "minisearch";
 import { ISearchProvider } from "./search-provider";
 import { SearchResult } from "./search";
 
-// HACK: I am not proud of this, but this is the easiest way to get settings
-// without a bigger refactor.
 interface ClauSettings {
 	ignoredFolders: string;
 	privateTags: string;
@@ -46,7 +44,6 @@ export class MiniSearchProvider implements ISearchProvider {
 
 		this.isBuilding = true;
 		try {
-			// Reset the index before building
 			this.minisearch.removeAll();
 
 			const files = this.app.vault
@@ -86,19 +83,25 @@ export class MiniSearchProvider implements ISearchProvider {
 	}
 
 	async remove(file: TFile) {
-		// No need to check for ignored path, as it wouldn't be in the index anyway
 		if (this.minisearch.has(file.path)) {
 			await this.minisearch.remove({ path: file.path } as any);
 		}
 	}
 
+	async rename(file: TFile, oldPath: string) {
+		if (this.minisearch.has(oldPath)) {
+			await this.minisearch.remove({ path: oldPath } as any);
+		}
+		if (!this.isPathIgnored(file.path)) {
+			await this.add(file);
+		}
+	}
+
 	async update(file: TFile) {
 		if (this.isPathIgnored(file.path)) {
-			// If the file is now ignored, ensure it's removed from the index
 			await this.remove(file);
 			return;
 		}
-		// If it's not ignored, remove the old version and add the new one
 		await this.remove(file);
 		await this.add(file);
 	}

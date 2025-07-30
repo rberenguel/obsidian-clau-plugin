@@ -15,18 +15,21 @@ interface ClauSettings {
 	ignoredFolders: string;
 	privateTags: string;
 	privateFolders: string;
+	reindexInterval: number;
 }
 
 const DEFAULT_SETTINGS: ClauSettings = {
 	ignoredFolders: "",
 	privateTags: "",
 	privateFolders: "",
+	reindexInterval: 10,
 };
 
 export default class QuickSwitcherPlusPlugin extends Plugin {
 	customSearchIndex: SearchIndex;
 	miniSearchProvider: MiniSearchProvider;
 	settings: ClauSettings;
+	reindexIntervalId: number | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -38,6 +41,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 		);
 
 		await this.miniSearchProvider.build();
+		this.setupReindexInterval();
 
 		this.addCommand({
 			id: "open-clau-minisearch",
@@ -57,7 +61,6 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			id: "rebuild-clau-index",
 			name: "Re-build index",
 			callback: async () => {
-				// await this.customSearchIndex.build();
 				await this.miniSearchProvider.build();
 				console.log(
 					`Clau: MiniSearch index has been manually rebuilt.`,
@@ -65,11 +68,9 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			},
 		});
 
-		// Register events for the active providers
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
 				if (file instanceof TFile && file.extension === "md") {
-					// this.customSearchIndex.add(file);
 					this.miniSearchProvider.add(file);
 				}
 			}),
@@ -77,7 +78,6 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
 				if (file instanceof TFile && file.extension === "md") {
-					// this.customSearchIndex.remove(file);
 					this.miniSearchProvider.remove(file);
 				}
 			}),
@@ -85,13 +85,39 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (file instanceof TFile && file.extension === "md") {
-					// this.customSearchIndex.update(file);
 					this.miniSearchProvider.update(file);
 				}
 			}),
 		);
+		this.registerEvent(
+			this.app.vault.on('rename', (file, oldPath) => {
+				if (file instanceof TFile && file.extension === 'md') {
+					this.miniSearchProvider.rename(file, oldPath);
+				}
+			})
+		);
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
+	}
+
+	onunload() {
+		if (this.reindexIntervalId !== null) {
+			window.clearInterval(this.reindexIntervalId);
+		}
+	}
+
+	setupReindexInterval() {
+		if (this.reindexIntervalId !== null) {
+			window.clearInterval(this.reindexIntervalId);
+		}
+
+		if (this.settings.reindexInterval > 0) {
+			this.reindexIntervalId = window.setInterval(async () => {
+				console.log(`Clau: Performing periodic re-index.`);
+				await this.miniSearchProvider.build();
+			}, this.settings.reindexInterval * 60 * 1000);
+			this.registerInterval(this.reindexIntervalId);
+		}
 	}
 
 	async loadSettings() {
@@ -104,8 +130,8 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		// Re-build index after saving settings
 		await this.miniSearchProvider.build();
+		this.setupReindexInterval();
 	}
 }
 
@@ -168,6 +194,24 @@ class ClauSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		new Setting(containerEl)
+			.setName("Re-index interval (minutes)")
+			.setDesc(
+				"The interval in minutes to automatically re-index the vault. Set to 0 to disable.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g. 10")
+					.setValue(String(this.plugin.settings.reindexInterval))
+					.onChange(async (value) => {
+						const interval = Number(value);
+						if (!isNaN(interval) && interval >= 0) {
+							this.plugin.settings.reindexInterval = interval;
+							await this.plugin.saveSettings();
+						}
+					}),
+			);
 	}
 }
 
@@ -222,7 +266,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 			cls: "clau-suggestion-path",
 		});
 
-		// Always show context if privacy is ignored
 		if (this.ignorePrivacy) {
 			if (result.context) {
 				const contextEl = el.createDiv({
@@ -240,7 +283,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 			return;
 		}
 
-		// Handle private search mode
 		if (this.isPrivateSearch) {
 			const wrapper = el.createDiv({
 				cls: "clau-suggestion-context clau-private-context",
@@ -255,7 +297,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 			return;
 		}
 
-		// Default behavior: check settings
 		const privateTags = this.settings.privateTags
 			.split(",")
 			.map((t) => t.trim())
@@ -320,7 +361,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 			.filter((w) => w.length > 0);
 		if (queryWords.length === 0) return;
 
-		// Regex to find whole words that start with any of the query words.
 		const regex = new RegExp(`\\b(${queryWords.join("|")})\\w*`, "ig");
 
 		const walker = document.createTreeWalker(
@@ -340,7 +380,7 @@ class ClauModal extends SuggestModal<SearchResult> {
 		let node;
 		while ((node = walker.nextNode())) {
 			const text = node.nodeValue || "";
-			regex.lastIndex = 0; // Reset regex state
+			regex.lastIndex = 0;
 			if (!regex.test(text)) continue;
 
 			const fragment = document.createDocumentFragment();
@@ -380,29 +420,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 
 		for (const { original, replacements } of nodesToReplace) {
 			(original as ChildNode).replaceWith(...replacements);
-		}
-	}
-
-	private highlightText(element: HTMLElement, text: string, query: string) {
-		const queryWords = query
-			.toLowerCase()
-			.split(" ")
-			.filter((w) => w.length > 0);
-		if (queryWords.length === 0) {
-			element.setText(text);
-			return;
-		}
-		const regex = new RegExp(`(${queryWords.join("|")})`, "ig");
-		const parts = text.split(regex);
-		for (const part of parts) {
-			if (queryWords.some((word) => part.toLowerCase() === word)) {
-				element.createSpan({
-					text: part,
-					cls: "clau-suggestion-highlight",
-				});
-			} else {
-				element.appendText(part);
-			}
 		}
 	}
 
