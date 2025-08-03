@@ -10,6 +10,7 @@ import {
 import { SearchIndex, SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
 import { MiniSearchProvider } from "./minisearch-provider";
+import { MultiSelectModal } from "./multi-select-modal";
 
 interface ClauSettings {
 	ignoredFolders: string;
@@ -30,6 +31,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
 	settings: ClauSettings;
 	reindexIntervalId: number | null = null;
+	selectionMap: Map<string, SearchResult> = new Map();
 
 	async onload() {
 		await this.loadSettings();
@@ -68,30 +70,43 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			},
 		});
 
+this.addCommand({
+    id: 'open-clau-multi-select',
+    name: 'Select files to copy content',
+    callback: () => {
+        // Pass the selection map to the modal
+        new MultiSelectModal(
+            this.app,
+            this.miniSearchProvider,
+            this.selectionMap
+        ).open();
+    }
+});
+
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile ) {
 					this.miniSearchProvider.add(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile ) {
 					this.miniSearchProvider.remove(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile ) {
 					this.miniSearchProvider.update(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on('rename', (file, oldPath) => {
-				if (file instanceof TFile && file.extension === 'md') {
+				if (file instanceof TFile ) {
 					this.miniSearchProvider.rename(file, oldPath);
 				}
 			})

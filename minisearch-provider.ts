@@ -52,7 +52,10 @@ export class MiniSearchProvider implements ISearchProvider {
 
 			const documents = await Promise.all(
 				files.map(async (file) => {
-					const content = await this.app.vault.cachedRead(file);
+					const content =
+						file.extension === "md"
+							? await this.app.vault.cachedRead(file)
+							: "";
 					return {
 						path: file.path,
 						title: file.basename,
@@ -74,7 +77,10 @@ export class MiniSearchProvider implements ISearchProvider {
 
 	async add(file: TFile) {
 		if (this.isPathIgnored(file.path)) return;
-		const content = await this.app.vault.cachedRead(file);
+		const content =
+			file.extension === "md"
+				? await this.app.vault.cachedRead(file)
+				: "";
 		await this.minisearch.add({
 			path: file.path,
 			title: file.basename,
