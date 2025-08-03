@@ -22,6 +22,37 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
     *   **Modifiers can be combined:** For example, `! . project spec -wip` will perform a fuzzy, title-only search for "project spec" while ignoring privacy and excluding notes with "wip".
 3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette.
 
+### Copy Content from Multiple Files
+
+This feature allows you to select multiple notes and copy their content to the clipboard, formatted for use as a context in a Large Language Model (LLM) prompt.
+
+#### How to Use
+
+1.  Open the command palette and run the command: `Select files to copy content`.
+2.  Use the search bar to find the files you want to include. Click on a file in the search results to add it to your selection.
+3.  Selected files appear in a list at the bottom of the modal. You can manage your selection here:
+    * Click the **Remove** button next to any file to exclude it.
+    * Click **Clear All** to empty your selection.
+4.  Once you are satisfied with the list, click the **Copy Content of X File(s)** button.
+
+This will copy the formatted content to your clipboard and close the modal.
+
+#### Output Format
+
+The content of the selected files is concatenated into a single block of text. Each file is clearly delineated with a header containing its path, making it easy for an LLM to distinguish between different sources of information.
+
+The format is as follows:
+
+```
+--- FILE: path/to/first-note.md ---
+Content of the first note...
+
+---
+
+--- FILE: path/to/second-note.md ---
+Content of the second note...
+```
+
 ## Why not use [OmniSearch](https://github.com/scambier/obsidian-omnisearch)?
 
 Tweaking your own plugin is kind of fun, also _sometimes_ I need plugins with the minimum amount of dependencies so I can confirm the code is safe. This is small enough I can check everything manually, and does _exactly_ what I want.

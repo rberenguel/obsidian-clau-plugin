@@ -32,6 +32,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 	settings: ClauSettings;
 	reindexIntervalId: number | null = null;
 	selectionMap: Map<string, SearchResult> = new Map();
+	public lastMultiSelectQuery: string = "";
 
 	async onload() {
 		await this.loadSettings();
@@ -70,46 +71,47 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			},
 		});
 
-this.addCommand({
-    id: 'open-clau-multi-select',
-    name: 'Select files to copy content',
-    callback: () => {
-        // Pass the selection map to the modal
-        new MultiSelectModal(
-            this.app,
-            this.miniSearchProvider,
-            this.selectionMap
-        ).open();
-    }
-});
+		this.addCommand({
+			id: "open-clau-multi-select",
+			name: "Select files to copy content",
+			callback: () => {
+				// Pass the selection map to the modal
+				new MultiSelectModal(
+					this.app,
+					this,
+					this.miniSearchProvider,
+					this.selectionMap,
+				).open();
+			},
+		});
 
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (file instanceof TFile ) {
+				if (file instanceof TFile) {
 					this.miniSearchProvider.add(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (file instanceof TFile ) {
+				if (file instanceof TFile) {
 					this.miniSearchProvider.remove(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (file instanceof TFile ) {
+				if (file instanceof TFile) {
 					this.miniSearchProvider.update(file);
 				}
 			}),
 		);
 		this.registerEvent(
-			this.app.vault.on('rename', (file, oldPath) => {
-				if (file instanceof TFile ) {
+			this.app.vault.on("rename", (file, oldPath) => {
+				if (file instanceof TFile) {
 					this.miniSearchProvider.rename(file, oldPath);
 				}
-			})
+			}),
 		);
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
@@ -127,10 +129,13 @@ this.addCommand({
 		}
 
 		if (this.settings.reindexInterval > 0) {
-			this.reindexIntervalId = window.setInterval(async () => {
-				console.log(`Clau: Performing periodic re-index.`);
-				await this.miniSearchProvider.build();
-			}, this.settings.reindexInterval * 60 * 1000);
+			this.reindexIntervalId = window.setInterval(
+				async () => {
+					console.log(`Clau: Performing periodic re-index.`);
+					await this.miniSearchProvider.build();
+				},
+				this.settings.reindexInterval * 60 * 1000,
+			);
 			this.registerInterval(this.reindexIntervalId);
 		}
 	}

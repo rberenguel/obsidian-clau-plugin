@@ -131,3 +131,38 @@
 mark.clau-suggestion-highlight {
 	all: unset;
 }
+
+.clau-selection-header {
+	border-bottom: 1px solid var(--color-accent);
+	padding-bottom: 0.3em;
+}
+
+.clau-selection-list {
+	display: block;
+	padding: 0.5em;
+}
+
+.clau-selection-item {
+	border-bottom: 1px solid var(--color-accent);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.multi-select-buttons {
+	padding: 0.5em;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.clau-selection-item-remove-btn {
+	padding: 0.3em;
+	margin: 0.2em;
+	color: var(--red) !important;
+}
+
+.clau-clear-all-btn {
+	padding: 0.5em;
+	color: var(--red) !important;
+}
