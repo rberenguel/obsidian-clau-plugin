@@ -18,8 +18,8 @@ export class MiniSearchProvider implements ISearchProvider {
 		this.app = app;
 		this.settings = settings;
 		this.minisearch = new MiniSearch({
-			fields: ["title", "content"],
-			storeFields: ["title", "path"],
+			fields: ["title", "content", "aliases"],
+			storeFields: ["title", "path", "aliases"],
 			idField: "path",
 			processTerm: (term) => term.toLowerCase(),
 		});
@@ -56,10 +56,15 @@ export class MiniSearchProvider implements ISearchProvider {
 						file.extension === "md"
 							? await this.app.vault.cachedRead(file)
 							: "";
+					const cache = this.app.metadataCache.getFileCache(file);
+					const aliases = cache?.frontmatter?.aliases || [];
 					return {
 						path: file.path,
 						title: file.basename,
 						content: content,
+						aliases: Array.isArray(aliases)
+							? aliases.join(" ")
+							: aliases,
 					};
 				}),
 			);
@@ -81,10 +86,13 @@ export class MiniSearchProvider implements ISearchProvider {
 			file.extension === "md"
 				? await this.app.vault.cachedRead(file)
 				: "";
+		const cache = this.app.metadataCache.getFileCache(file);
+		const aliases = cache?.frontmatter?.aliases || [];
 		await this.minisearch.add({
 			path: file.path,
 			title: file.basename,
 			content: content,
+			aliases: Array.isArray(aliases) ? aliases.join(" ") : aliases,
 		});
 	}
 
@@ -167,7 +175,7 @@ export class MiniSearchProvider implements ISearchProvider {
 		const searchOptions: any = {
 			prefix: true,
 			fuzzy: isFuzzy ? 0.2 : 0,
-			boost: { title: 2 },
+			boost: { title: 2, aliases: 1.5 },
 		};
 
 		if (isTitleOnly) {
