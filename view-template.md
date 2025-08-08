@@ -1,22 +1,21 @@
-
 > [!snipper-config]- Snipper filter
->  
-> //  --- Config Example, needs to be a folded callout ---
+>
+> // --- Config Example, needs to be a folded callout ---
 > // Use a convenience query (thisMonth, lastMonth, thisWeek, lastWeek)
 > query: thisWeek
->  
+>
 > // Or, use a specific date range (this will be ignored if "query" is set)
 > // dateFormat: YYYYMMDD
 > // startDate: 20250701
 > // endDate: 20250703
->  
+>
 > // --- Optional Display Settings ---
 > // listStyle: card, glow, quote, glass, or ""
 > // sortOrder: desc (newest first) or asc (oldest first)
 > listStyle: glow
 > sortOrder: desc
 
-```dataviewjs
+````dataviewjs
 // --- Configuration ---
 // This section finds and parses the dedicated YAML config block.
 async function getSnipperConfig() {
@@ -106,30 +105,30 @@ if (config) { // Only run if config was parsed successfully
         startDate = config.startDate ? parseDateWithFormat(String(config.startDate), config.dateFormat) : null;
         endDate = config.endDate ? parseDateWithFormat(String(config.endDate), config.dateFormat) : null;
     }
-    
+
     // If no dates are set at all, show help text instead of running a query.
     if (errorMode === "NoValidConfig") {
         dv.el("div", "No date range specified. Add a configuration block like the one below (a custom folded callout) to this note to get started.", {cls: "help-text"});
         const example = `
 \`\`\`
 > [!snipper-config]- Snipper filter
->  
-> 
+>
+>
 > //  --- Config Example, a codeblock with language obsidian-snipper ---
 > // Use a convenience query (thisMonth, > lastMonth, thisWeek, lastWeek)
 > // query: thisMonth
->  
+>
 > // Or, use a specific date range (this > will be ignored if "query" is set)
 > dateFormat: YYYYMMDD
 > startDate: 20250701
 > endDate: 20250703
->  
+>
 > // --- Optional Display Settings ---
 > // listStyle: card, glow, quote, glass, > or ""
 > // sortOrder: desc (newest first) or asc > (oldest first)
 > listStyle: glow
 > sortOrder: desc
-\`\`\` 
+\`\`\`
 `;
         dv.paragraph(example);
         return; // Stop execution
@@ -159,13 +158,13 @@ if (config) { // Only run if config was parsed successfully
     } else {
         for (const page of pages) {
             const container = dv.container.createEl("div", { cls: `snippet-widget ${config.listStyle}` });
-            
+
             // Add date link
             const fileDate = parseDateWithFormat(page.file.name.substring(2), config.dateFormat);
             if(fileDate) {
                 const dailyNoteName = page.file.name.slice(2);
                 const dailyNotePath = dailyNoteFolder ? `${dailyNoteFolder}${dailyNoteName}.md` : `${dailyNoteName}.md`;
-                
+
                 const dateEl = container.createEl('div', { cls: 'snippet-date' });
                 const link = dateEl.createEl('a', {
                     cls: 'internal-link',
@@ -187,4 +186,4 @@ if (config) { // Only run if config was parsed successfully
         }
     }
 }
-```
+````

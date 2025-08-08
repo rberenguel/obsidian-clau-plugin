@@ -7,9 +7,11 @@ import {
 	PluginSettingTab,
 	Setting,
 } from "obsidian";
-import { SearchIndex, SearchResult } from "./search";
+import { SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
 import { MiniSearchProvider } from "./minisearch-provider";
+import { TitleContainsSearchProvider } from "./title-contains-search-provider";
+import { CombinedSearchProvider } from "./combined-search-provider";
 import { MultiSelectModal } from "./multi-select-modal";
 
 interface ClauSettings {
@@ -27,8 +29,9 @@ const DEFAULT_SETTINGS: ClauSettings = {
 };
 
 export default class QuickSwitcherPlusPlugin extends Plugin {
-	customSearchIndex: SearchIndex;
 	miniSearchProvider: MiniSearchProvider;
+	titleContainsSearchProvider: TitleContainsSearchProvider;
+	combinedSearchProvider: CombinedSearchProvider;
 	settings: ClauSettings;
 	reindexIntervalId: number | null = null;
 	selectionMap: Map<string, SearchResult> = new Map();
@@ -37,10 +40,16 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.customSearchIndex = new SearchIndex(this.app.vault);
 		this.miniSearchProvider = new MiniSearchProvider(
 			this.app,
 			this.settings,
+		);
+		this.titleContainsSearchProvider = new TitleContainsSearchProvider(
+			this.app,
+		);
+		this.combinedSearchProvider = new CombinedSearchProvider(
+			this.miniSearchProvider,
+			this.titleContainsSearchProvider,
 		);
 
 		await this.miniSearchProvider.build();
@@ -52,7 +61,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			callback: () => {
 				new ClauModal(
 					this.app,
-					this.miniSearchProvider,
+					this.combinedSearchProvider,
 					this,
 					"search? also: ? for private, ! to ignore privacy, space for title, . for fuzzy, -term, -/path",
 					this.settings,
@@ -64,7 +73,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			id: "rebuild-clau-index",
 			name: "Re-build index",
 			callback: async () => {
-				await this.miniSearchProvider.build();
+				await this.combinedSearchProvider.build();
 				console.log(
 					`Clau: MiniSearch index has been manually rebuilt.`,
 				);
@@ -79,7 +88,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 				new MultiSelectModal(
 					this.app,
 					this,
-					this.miniSearchProvider,
+					this.combinedSearchProvider,
 					this.selectionMap,
 				).open();
 			},
@@ -88,28 +97,28 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
 				if (file instanceof TFile) {
-					this.miniSearchProvider.add(file);
+					this.combinedSearchProvider.add(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
 				if (file instanceof TFile) {
-					this.miniSearchProvider.remove(file);
+					this.combinedSearchProvider.remove(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (file instanceof TFile) {
-					this.miniSearchProvider.update(file);
+					this.combinedSearchProvider.update(file);
 				}
 			}),
 		);
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
 				if (file instanceof TFile) {
-					this.miniSearchProvider.rename(file, oldPath);
+					this.combinedSearchProvider.rename(file, oldPath);
 				}
 			}),
 		);
@@ -150,7 +159,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		await this.miniSearchProvider.build();
+		await this.combinedSearchProvider.build();
 		this.setupReindexInterval();
 	}
 }
