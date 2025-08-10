@@ -1,62 +1,64 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <title>Obsidian Vault Visualization</title>
-    <script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/umap-js@1.3.3/lib/umap-js.min.js"></script>
-</head>
-<body>
-    <h1>Obsidian Vault Visualization</h1>
-    <div id="plot"></div>
-    <script>
-        async function visualize() {
-            // Load the exported data
-            const response = await fetch('visualization-data.json');
-            const data = await response.json();
+	<head>
+		<title>Obsidian Vault Visualization</title>
+		<script src="https://cdn.plot.ly/plotly-2.33.0.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/umap-js@1.3.3/lib/umap-js.min.js"></script>
+	</head>
+	<body>
+		<h1>Obsidian Vault Visualization</h1>
+		<div id="plot"></div>
+		<script>
+			async function visualize() {
+				// Load the exported data
+				const response = await fetch("visualization-data.json");
+				const data = await response.json();
 
-            const embeddings = data.map(d => d.embedding);
-            const titles = data.map(d => d.title);
-            const paths = data.map(d => d.path);
+				const embeddings = data.map((d) => d.embedding);
+				const titles = data.map((d) => d.title);
+				const paths = data.map((d) => d.path);
 
-            // Initialize UMAP
-            const umap = new UMAP({
-                nComponents: 2, // 2 for 2D plot, 3 for 3D
-                nNeighbors: 15,
-                minDist: 0.1,
-                spread: 1.0,
-            });
+				// Initialize UMAP
+				const umap = new UMAP({
+					nComponents: 2, // 2 for 2D plot, 3 for 3D
+					nNeighbors: 15,
+					minDist: 0.1,
+					spread: 1.0,
+				});
 
-            // Fit the data
-            const projection = await umap.fitAsync(embeddings);
+				// Fit the data
+				const projection = await umap.fitAsync(embeddings);
 
-            // Create the plot with Plotly
-            const trace = {
-                x: projection.map(p => p[0]),
-                y: projection.map(p => p[1]),
-                mode: 'markers',
-                type: 'scatter',
-                text: titles, // Show note title on hover
-                customdata: paths, // Store path for click events
-                marker: { size: 5 }
-            };
+				// Create the plot with Plotly
+				const trace = {
+					x: projection.map((p) => p[0]),
+					y: projection.map((p) => p[1]),
+					mode: "markers",
+					type: "scatter",
+					text: titles, // Show note title on hover
+					customdata: paths, // Store path for click events
+					marker: { size: 5 },
+				};
 
-            const layout = {
-                title: '2D UMAP Projection of Your Obsidian Vault',
-                hovermode: 'closest'
-            };
+				const layout = {
+					title: "2D UMAP Projection of Your Obsidian Vault",
+					hovermode: "closest",
+				};
 
-            Plotly.newPlot('plot', [trace], layout);
-            
-            // Open note in Obsidian on click
-            const plotDiv = document.getElementById('plot');
-            plotDiv.on('plotly_click', function(data){
-                const point = data.points[0];
-                const path = point.customdata;
-                window.open(`obsidian://open?vault=YOUR_VAULT_NAME&file=${encodeURIComponent(path)}`);
-            });
-        }
+				Plotly.newPlot("plot", [trace], layout);
 
-        visualize();
-    </script>
-</body>
+				// Open note in Obsidian on click
+				const plotDiv = document.getElementById("plot");
+				plotDiv.on("plotly_click", function (data) {
+					const point = data.points[0];
+					const path = point.customdata;
+					window.open(
+						`obsidian://open?vault=YOUR_VAULT_NAME&file=${encodeURIComponent(path)}`,
+					);
+				});
+			}
+
+			visualize();
+		</script>
+	</body>
 </html>
