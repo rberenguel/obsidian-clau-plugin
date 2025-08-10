@@ -69,7 +69,7 @@ Content of the second note...
 
 ## Why not use [OmniSearch](https://github.com/scambier/obsidian-omnisearch)?
 
-Tweaking your own plugin is kind of fun, also _sometimes_ I need plugins with the minimum amount of dependencies so I can confirm the code is safe. This is small enough I can check everything manually, and does _exactly_ what I want.
+Tweaking your own plugin is kind of fun, also _sometimes_ I need plugins with the minimum amount of dependencies so I can confirm the code is safe. This is small enough I can check everything manually, and does _exactly_ what I want. Also, semantic search now.
 
 ## Semantic Search Setup
 
@@ -90,6 +90,7 @@ To enable and use the semantic search functionality, you need to set up the GloV
         ```
     - This will create files like `glove.6B.100d_part_1.txt`, `glove.6B.100d_part_2.txt`, etc.
     - In Clau settings, set "GloVe path format" to `embeddings/glove.6B.100d_part_{}.txt` and "Number of GloVe file parts" to the number of files generated.
+    - _Alternative_: You can also run the Python script in `split_file.py` (run it like `python split_file.py -input your_file.txt -lines 50000`) to split these vectors, useful if you don't care about mobile or don't have Go installed. I didn't bother getting the pruner in Python though.
 
 3.  (for mobile use) **Export Vault Vocabulary:**
 
