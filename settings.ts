@@ -20,6 +20,7 @@ export interface ClauSettings {
 	// New UMAP settings for visualization
 	umapNNeighbors: number;
 	umapMinDist: number;
+    umapSpread: number;
 }
 
 export const DEFAULT_SETTINGS: ClauSettings = {
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: ClauSettings = {
 	// New UMAP defaults
 	umapNNeighbors: 15,
 	umapMinDist: 0.03,
+    umapSpread: 1,
 };
 
 export class ClauSettingTab extends PluginSettingTab {
@@ -309,5 +311,19 @@ export class ClauSettingTab extends PluginSettingTab {
 						}
 					}),
 			);
+
+            new Setting(containerEl)
+    .setName("UMAP Spread")
+    .setDesc("The effective scale of the embedding. A larger value will result in a more spread-out map.")
+    .addText(text => text
+        .setPlaceholder("1")
+        .setValue(String(this.plugin.settings.umapSpread))
+        .onChange(async (value) => {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num > 0) {
+                this.plugin.settings.umapSpread = num;
+                await this.plugin.saveSettings();
+            }
+        }));
 	}
 }

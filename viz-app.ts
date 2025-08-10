@@ -33,6 +33,7 @@ function valueToHexColor(value: number, min: number, max: number): number {
 			nComponents: 2,
 			nNeighbors: vizSettings?.umapNNeighbors || 15,
 			minDist: vizSettings?.umapMinDist || 0.03,
+            spread: vizSettings?.umapSpread || 1
 		});
 		const embeddings = pointsData.map((p: any) => p.embedding);
 		const projection = await umap.fitAsync(embeddings);
@@ -62,7 +63,7 @@ function valueToHexColor(value: number, min: number, max: number): number {
 			if (p[1] < minY) minY = p[1];
 			if (p[1] > maxY) maxY = p[1];
 		});
-		const scale = 80;
+		const scale = 120;
 
 		const allPointsGfx: {
 			path: string;
