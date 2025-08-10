@@ -1,0 +1,4 @@
+- [ ] Refactor the monstrosity that is `main.ts`.
+- [ ] Uniform behavior of search in viz and normal.
+- [ ] Make `umap` parameters configurable.
+- [ ] Refactor the whole of this.

@@ -36,7 +36,7 @@ echo "Creating zip archive at $RELEASE_ZIP_PATH..."
 TMP_DIR=$(mktemp -d)
 
 # Copy the release files to the temporary directory.
-cp main.js styles.css manifest.json "$TMP_DIR"
+cp main.js styles.css manifest.json viz-bundle.js "$TMP_DIR"
 
 # Create the zip file from the contents of the temporary directory.
 (cd "$TMP_DIR" && zip -r "$RELEASE_ZIP_PATH" .)

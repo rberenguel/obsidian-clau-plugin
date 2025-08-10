@@ -105,6 +105,10 @@ To enable and use the semantic search functionality, you need to set up the GloV
         ```
     - In Clau settings, set "Pruned GloVe file path" to `embeddings/enhanced_pruned_vectors.txt`.
 
+If you have semantic search configured properly you can create a [UMAP](https://umap-learn.readthedocs.io/en/latest/) plot of your vault. There is also a search field that will search using minisearch (full terms, no frills for now) by default, and will search semantically when adding a `,` at the beginning. Looks like this:
+
+![](https://raw.githubusercontent.com/rberenguel/obsidian-clau-plugin/main/media/clau-umap.png)
+
 ## Installation
 
 ### Manual Installation

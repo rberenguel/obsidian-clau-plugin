@@ -19,23 +19,24 @@ export class SemanticSearchProvider implements ISearchProvider {
 		this.settings = settings;
 	}
 
-	async search(query: string): Promise<SearchResult[]> {
-		if (!this.settings.enableSemanticSearch) {
-			return [];
-		}
+	async search(query: string, topK: number = 10): Promise<SearchResult[]> {
+    if (!this.settings.enableSemanticSearch) {
+        return [];
+    }
 
-		const vectors = await this.getVectors();
-		const index = await this.getSearchIndex();
+    const vectors = await this.getVectors();
+    const index = await this.getSearchIndex();
 
-		if (!vectors || !index || index.length === 0) {
-			new Notice(
-				"Semantic model or index not ready. Build index from settings.",
-				5000,
-			);
-			return [];
-		}
+    if (!vectors || !index || index.length === 0) {
+        new Notice(
+            "Semantic model or index not ready. Build index from settings.",
+            5000,
+        );
+        return [];
+    }
 
-		const semanticResults = searchIndex(query, index, vectors);
+    // Pass the topK parameter to searchIndex
+    const semanticResults = searchIndex(query, index, vectors, topK);
 
 		// Adapt results to the common SearchResult format
 		return semanticResults.map((item) => {

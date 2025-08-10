@@ -57,16 +57,16 @@ const DEFAULT_SETTINGS: ClauSettings = {
 
 export const VAULT_VIZ_VIEW_TYPE = "clau-vault-viz-view";
 
-// In main.ts, replace the entire VaultVizView class with this one.
-
 class VaultVizView extends ItemView {
     private pixiApp: any;
-    // --- NEW: Keep a reference to the plugin ---
     private plugin: ClauPlugin;
-
+    private searchWrapper: HTMLElement;
+    private searchInput: HTMLInputElement;
+    private searchIcon: HTMLElement;
+private titleElements: HTMLElement[] = [];
+    private ZOOM_THRESHOLD = 10;
     constructor(leaf: WorkspaceLeaf, plugin: ClauPlugin) {
         super(leaf);
-        // --- NEW: Store the plugin reference ---
         this.plugin = plugin;
     }
 
@@ -81,9 +81,8 @@ class VaultVizView extends ItemView {
     async onOpen() {
         this.draw();
     }
-    
-    // --- NEW: A dedicated draw function we can call to refresh ---
-async draw() {
+
+ async draw() {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.style.width = '100%';
@@ -96,35 +95,50 @@ async draw() {
             return;
         }
         
-        // --- NEW: Search UI ---
-        const searchWrapper = container.createDiv({ cls: 'clau-viz-search-wrapper' });
-        searchWrapper.style.position = 'absolute';
-        searchWrapper.style.top = '10px';
-        searchWrapper.style.right = '10px';
-        searchWrapper.style.zIndex = '10'; // Ensure it's on top
-        
-        const searchInput = searchWrapper.createEl('input', { type: 'text', placeholder: 'Semantic Search...' });
-        searchInput.style.display = 'none'; // Initially hidden
-        searchInput.style.border = '1px solid #555';
-        searchInput.style.backgroundColor = '#333';
-        searchInput.style.color = 'white';
-        searchInput.style.padding = '5px';
-        searchInput.style.borderRadius = '3px';
+        const titleContainer = container.createDiv({ cls: 'clau-viz-titles-container' });
+        titleContainer.style.position = 'absolute';
+        titleContainer.style.top = '0';
+        titleContainer.style.left = '0';
+        titleContainer.style.width = '100%';
+        titleContainer.style.height = '100%';
+        titleContainer.style.pointerEvents = 'none';
 
-        const searchIcon = searchWrapper.createDiv({ cls: 'clau-viz-search-icon' });
-        setIcon(searchIcon, "search"); // Use Obsidian's built-in icon
-        searchIcon.style.cursor = 'pointer';
-        searchIcon.style.padding = '5px';
-        
-        searchIcon.onClickEvent(() => {
-            const isHidden = searchInput.style.display === 'none';
-            searchInput.style.display = isHidden ? 'block' : 'none';
+        const vizContainer = this.containerEl.children[1] as HTMLElement;
+        this.searchWrapper = vizContainer.createDiv({ cls: 'clau-viz-search-wrapper' });
+        this.searchWrapper.style.position = 'fixed';
+        this.searchWrapper.style.top = '5em';
+        this.searchWrapper.style.left = '5em';
+        this.searchWrapper.style.zIndex = '10';
+        this.searchWrapper.style.display = 'flex';
+        this.searchWrapper.style.alignItems = 'center';
+        this.searchWrapper.style.gap = '8px';
+
+        this.searchInput = this.searchWrapper.createEl('input', { type: 'text', placeholder: 'Semantic Search...' });
+        this.searchInput.style.display = 'none';
+        this.searchInput.style.border = '1px solid #555';
+        this.searchInput.style.backgroundColor = '#333';
+        this.searchInput.style.color = 'white';
+        this.searchInput.style.padding = '5px';
+        this.searchInput.style.borderRadius = '3px';
+        this.searchInput.style.width = '150px';
+
+        this.searchIcon = this.searchWrapper.createDiv({ cls: 'clau-viz-search-icon' });
+        setIcon(this.searchIcon, "search");
+        this.searchIcon.style.cursor = 'pointer';
+        this.searchIcon.style.padding = '5px';
+
+        this.searchIcon.onClickEvent(async () => {
+            const isHidden = this.searchInput.style.display === 'none';
             if (isHidden) {
-                searchInput.focus();
+                const loadingNotice = new Notice("Loading semantic model...", 0);
+                await this.plugin.semanticSearchProvider.getVectors();
+                loadingNotice.hide();
+                this.searchInput.style.display = 'block';
+                this.searchInput.focus();
+            } else {
+                this.searchInput.style.display = 'none';
             }
         });
-        
-        // --- End of Search UI ---
 
         const tooltipEl = container.createEl('div');
         tooltipEl.style.position = 'absolute';
@@ -136,10 +150,21 @@ async draw() {
         tooltipEl.style.pointerEvents = 'none';
         tooltipEl.style.fontSize = '12px';
 
-        await this.drawPlot(container, tooltipEl, searchInput);
+        await this.drawPlot(container, tooltipEl, titleContainer);
     }
     
-    // --- NEW: Function to show the generate button ---
+    private showSearchUI(isLoading: boolean) {
+        if (isLoading) {
+            this.searchIcon.style.opacity = '0.5';
+            this.searchIcon.style.pointerEvents = 'none';
+            
+        } else {
+            this.searchIcon.style.opacity = '1';
+            this.searchIcon.style.pointerEvents = 'auto';
+            
+        }
+    }
+    
     showGenerateButton(container: HTMLElement) {
         container.empty();
         const wrapper = container.createDiv({
@@ -151,10 +176,9 @@ async draw() {
         generateButton.onClickEvent(async () => {
             generateButton.setText("Generating...");
             generateButton.disabled = true;
-            // Use the plugin reference to call the helper method
             const newDataCreated = await this.plugin.ensureVizData();
             if (newDataCreated) {
-                this.draw(); // Refresh the view to draw the plot
+                this.draw();
             } else {
                 generateButton.setText("Failed to generate data. Check console.");
             }
@@ -167,7 +191,7 @@ async draw() {
         }
     }
 
-    async drawPlot(container: HTMLElement, tooltipEl: HTMLElement, searchInput: HTMLInputElement) {
+async drawPlot(container: HTMLElement, tooltipEl: HTMLElement, titleContainer: HTMLElement) {
         const bundlePath = `${this.app.vault.configDir}/plugins/clau/viz-bundle.js`;
 
         if (!(await this.app.vault.adapter.exists(normalizePath(bundlePath)))) {
@@ -178,17 +202,70 @@ async draw() {
         const script = container.createEl("script");
         script.src = this.app.vault.adapter.getResourcePath(normalizePath(bundlePath));
         script.onload = async () => {
-            const vizApp = await (window as any).renderClauVisualization(container, tooltipEl, this.app);
-            this.pixiApp = vizApp.pixiApp; // Store for cleanup
+            const updateTitles = (viewport: any, points: any[]) => {
+                const isZoomedIn = viewport.scale.x > this.ZOOM_THRESHOLD;
+                if (!isZoomedIn) {
+                    this.titleElements.forEach(el => el.style.display = 'none');
+                    return;
+                }
+                
+                if (this.titleElements.length === 0) {
+                    points.forEach((p, i) => {
+                        const titleEl = titleContainer.createDiv({ text: p.title, cls: 'clau-viz-title' });
+                        titleEl.style.position = 'absolute';
+                        titleEl.style.color = '#FFFFFF';
+                        titleEl.style.fontSize = '10px';
+                        titleEl.style.whiteSpace = 'nowrap';
+                        titleEl.style.transform = 'translate(-50%, -120%)';
+                        titleEl.style.pointerEvents = 'none';
+                        titleEl.style.textShadow = '1px 1px 2px #000000';
+                        this.titleElements.push(titleEl);
+                    });
+                }
+                
+                points.forEach((p, i) => {
+                    const titleEl = this.titleElements[i];
+                    const screenPos = viewport.toScreen(p.x, p.y);
+                    
+                    const isVisible = screenPos.x > 0 && screenPos.x < container.offsetWidth &&
+                                      screenPos.y > 0 && screenPos.y < container.offsetHeight;
+                                      
+                    if (isVisible) {
+                        titleEl.style.display = 'block';
+                        titleEl.style.left = `${screenPos.x}px`;
+                        titleEl.style.top = `${screenPos.y}px`;
+                    } else {
+                        titleEl.style.display = 'none';
+                    }
+                });
+            };
 
-            // Listen for input and trigger the search in the visualization
-            searchInput.addEventListener('input', (e) => {
+            const vizApp = await (window as any).renderClauVisualization(container, tooltipEl, this.app, this.triggerVizSearch.bind(this), (isLoading: boolean) => this.showSearchUI(isLoading), updateTitles);
+            this.pixiApp = vizApp.pixiApp;
+
+            // FIX: Wire the input event listener to the vizApp's search function
+            this.searchInput.addEventListener('input', (e) => {
                 const query = (e.target as HTMLInputElement).value;
                 if (vizApp && vizApp.search) {
                     vizApp.search(query);
                 }
             });
+            
+            if (vizApp.viewport && vizApp.allPointsGfx) {
+                updateTitles(vizApp.viewport, vizApp.allPointsGfx);
+            }
         };
+    }
+   private async triggerVizSearch(query: string, topK: number = 50): Promise<SearchResult[]> {
+        // Semantic search is an exclusive search mode in the combined provider
+        const isSemantic = query.startsWith(',');
+        if (isSemantic) {
+            // The semantic search provider needs to be called directly with the topK parameter
+            return this.plugin.semanticSearchProvider.search(query.substring(1), topK);
+        } else {
+            // All other searches use the existing combined logic (minisearch + title-contains)
+            return this.plugin.combinedSearchProvider.search(query);
+        }
     }
 }
 
@@ -226,10 +303,10 @@ export default class ClauPlugin extends Plugin {
 
 		await this.miniSearchProvider.build();
 		this.setupReindexInterval();
-		
+
         this.registerView(
         VAULT_VIZ_VIEW_TYPE,
-        (leaf) => new VaultVizView(leaf, this) // Pass 'this' (the plugin instance)
+        (leaf) => new VaultVizView(leaf, this)
     );
 
 		this.addCommand({
@@ -274,8 +351,6 @@ this.addCommand({
         id: 'open-clau-vault-viz',
         name: 'Open Vault Visualization',
         callback: async () => {
-            // --- UPDATE the command to just open the view ---
-            // The view itself will handle data generation
             this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
             const newLeaf = this.app.workspace.getLeaf('tab');
             await newLeaf.setViewState({
@@ -317,12 +392,12 @@ this.addCommand({
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
 	}
-    
+
     async ensureVizData(): Promise<boolean> {
     const vizFolderName = "clau-viz";
     const dataPath = `${vizFolderName}/visualization-data.json`;
     if (await this.app.vault.adapter.exists(normalizePath(dataPath))) {
-         return false; // Data already exists
+         return false;
     }
 
     new Notice("Generating new visualization data...");
@@ -343,7 +418,7 @@ this.addCommand({
     }
     await this.app.vault.adapter.write(normalizePath(dataPath), JSON.stringify(exportData));
     new Notice(`Data for ${exportData.length} notes exported.`);
-    return true; // New data was created
+    return true;
 }
 
 	onunload() {
@@ -380,7 +455,6 @@ this.addCommand({
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		// Re-build minisearch index on settings change, semantic is manual
 		await this.miniSearchProvider.build();
 		this.setupReindexInterval();
 	}
@@ -694,7 +768,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 			this.query = query.substring(1);
 		}
 
-		// Disable input while loading
 		this.isLoading = true;
 		this.inputEl.disabled = true;
 
@@ -703,7 +776,7 @@ class ClauModal extends SuggestModal<SearchResult> {
 		} finally {
 			this.isLoading = false;
 			this.inputEl.disabled = false;
-			this.inputEl.focus(); // Re-focus the input element
+			this.inputEl.focus();
 		}
 	}
 
@@ -711,7 +784,6 @@ class ClauModal extends SuggestModal<SearchResult> {
 		el.classList.add("clau-suggestion-item");
 		el.empty();
 
-		// Determine the string to use for highlighting
 		const highlightQuery = result.highlightWord || this.query;
 
 		const titleEl = el.createDiv({ cls: "clau-suggestion-title" });
