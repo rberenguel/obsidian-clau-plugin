@@ -7,6 +7,10 @@ import {
 	PluginSettingTab,
 	Setting,
 	Notice,
+	ItemView,
+	WorkspaceLeaf,
+	normalizePath,
+	setIcon
 } from "obsidian";
 import { SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
@@ -17,6 +21,7 @@ import { MultiSelectModal } from "./multi-select-modal";
 import { SemanticSearchProvider } from "./semantic-search-provider";
 import { buildEnhancedPrunedVectors } from "./pruner";
 import { exportVaultVocabulary } from "./exporter";
+import { getDocumentVector } from "./model";
 
 export interface ClauSettings {
 	ignoredFolders: string;
@@ -50,7 +55,144 @@ const DEFAULT_SETTINGS: ClauSettings = {
 	lastExportVocabularyTime: null,
 };
 
-export default class QuickSwitcherPlusPlugin extends Plugin {
+export const VAULT_VIZ_VIEW_TYPE = "clau-vault-viz-view";
+
+// In main.ts, replace the entire VaultVizView class with this one.
+
+class VaultVizView extends ItemView {
+    private pixiApp: any;
+    // --- NEW: Keep a reference to the plugin ---
+    private plugin: ClauPlugin;
+
+    constructor(leaf: WorkspaceLeaf, plugin: ClauPlugin) {
+        super(leaf);
+        // --- NEW: Store the plugin reference ---
+        this.plugin = plugin;
+    }
+
+    getViewType() {
+        return VAULT_VIZ_VIEW_TYPE;
+    }
+
+    getDisplayText() {
+        return "Vault Visualization";
+    }
+
+    async onOpen() {
+        this.draw();
+    }
+    
+    // --- NEW: A dedicated draw function we can call to refresh ---
+async draw() {
+        const container = this.containerEl.children[1] as HTMLElement;
+        container.empty();
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.position = 'relative';
+
+        const dataPath = `clau-viz/visualization-data.json`;
+        if (!(await this.app.vault.adapter.exists(normalizePath(dataPath)))) {
+            this.showGenerateButton(container);
+            return;
+        }
+        
+        // --- NEW: Search UI ---
+        const searchWrapper = container.createDiv({ cls: 'clau-viz-search-wrapper' });
+        searchWrapper.style.position = 'absolute';
+        searchWrapper.style.top = '10px';
+        searchWrapper.style.right = '10px';
+        searchWrapper.style.zIndex = '10'; // Ensure it's on top
+        
+        const searchInput = searchWrapper.createEl('input', { type: 'text', placeholder: 'Semantic Search...' });
+        searchInput.style.display = 'none'; // Initially hidden
+        searchInput.style.border = '1px solid #555';
+        searchInput.style.backgroundColor = '#333';
+        searchInput.style.color = 'white';
+        searchInput.style.padding = '5px';
+        searchInput.style.borderRadius = '3px';
+
+        const searchIcon = searchWrapper.createDiv({ cls: 'clau-viz-search-icon' });
+        setIcon(searchIcon, "search"); // Use Obsidian's built-in icon
+        searchIcon.style.cursor = 'pointer';
+        searchIcon.style.padding = '5px';
+        
+        searchIcon.onClickEvent(() => {
+            const isHidden = searchInput.style.display === 'none';
+            searchInput.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) {
+                searchInput.focus();
+            }
+        });
+        
+        // --- End of Search UI ---
+
+        const tooltipEl = container.createEl('div');
+        tooltipEl.style.position = 'absolute';
+        tooltipEl.style.display = 'none';
+        tooltipEl.style.padding = '4px 8px';
+        tooltipEl.style.backgroundColor = 'rgba(0,0,0,0.8)';
+        tooltipEl.style.color = 'white';
+        tooltipEl.style.borderRadius = '4px';
+        tooltipEl.style.pointerEvents = 'none';
+        tooltipEl.style.fontSize = '12px';
+
+        await this.drawPlot(container, tooltipEl, searchInput);
+    }
+    
+    // --- NEW: Function to show the generate button ---
+    showGenerateButton(container: HTMLElement) {
+        container.empty();
+        const wrapper = container.createDiv({
+            attr: { style: 'display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;' }
+        });
+        wrapper.createEl('h3', { text: "Visualization Data Not Found" });
+        const generateButton = wrapper.createEl('button', { text: "Generate Data Now", cls: "mod-cta" });
+        
+        generateButton.onClickEvent(async () => {
+            generateButton.setText("Generating...");
+            generateButton.disabled = true;
+            // Use the plugin reference to call the helper method
+            const newDataCreated = await this.plugin.ensureVizData();
+            if (newDataCreated) {
+                this.draw(); // Refresh the view to draw the plot
+            } else {
+                generateButton.setText("Failed to generate data. Check console.");
+            }
+        });
+    }
+
+    async onClose() {
+        if (this.pixiApp) {
+            this.pixiApp.destroy(true, { children: true, texture: true, baseTexture: true });
+        }
+    }
+
+    async drawPlot(container: HTMLElement, tooltipEl: HTMLElement, searchInput: HTMLInputElement) {
+        const bundlePath = `${this.app.vault.configDir}/plugins/clau/viz-bundle.js`;
+
+        if (!(await this.app.vault.adapter.exists(normalizePath(bundlePath)))) {
+            container.setText(`Visualization bundle not found.`);
+            return;
+        }
+
+        const script = container.createEl("script");
+        script.src = this.app.vault.adapter.getResourcePath(normalizePath(bundlePath));
+        script.onload = async () => {
+            const vizApp = await (window as any).renderClauVisualization(container, tooltipEl, this.app);
+            this.pixiApp = vizApp.pixiApp; // Store for cleanup
+
+            // Listen for input and trigger the search in the visualization
+            searchInput.addEventListener('input', (e) => {
+                const query = (e.target as HTMLInputElement).value;
+                if (vizApp && vizApp.search) {
+                    vizApp.search(query);
+                }
+            });
+        };
+    }
+}
+
+export default class ClauPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
 	titleContainsSearchProvider: TitleContainsSearchProvider;
 	semanticSearchProvider: SemanticSearchProvider;
@@ -61,6 +203,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 	public lastMultiSelectQuery: string = "";
 
 	async onload() {
+		this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
 		await this.loadSettings();
 
 		this.miniSearchProvider = new MiniSearchProvider(
@@ -83,6 +226,11 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 
 		await this.miniSearchProvider.build();
 		this.setupReindexInterval();
+		
+        this.registerView(
+        VAULT_VIZ_VIEW_TYPE,
+        (leaf) => new VaultVizView(leaf, this) // Pass 'this' (the plugin instance)
+    );
 
 		this.addCommand({
 			id: "open-clau-minisearch",
@@ -122,6 +270,22 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			},
 		});
 
+this.addCommand({
+        id: 'open-clau-vault-viz',
+        name: 'Open Vault Visualization',
+        callback: async () => {
+            // --- UPDATE the command to just open the view ---
+            // The view itself will handle data generation
+            this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
+            const newLeaf = this.app.workspace.getLeaf('tab');
+            await newLeaf.setViewState({
+                type: VAULT_VIZ_VIEW_TYPE,
+                active: true,
+            });
+            this.app.workspace.revealLeaf(newLeaf);
+        }
+    });
+
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
 				if (file instanceof TFile) {
@@ -153,8 +317,37 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
 	}
+    
+    async ensureVizData(): Promise<boolean> {
+    const vizFolderName = "clau-viz";
+    const dataPath = `${vizFolderName}/visualization-data.json`;
+    if (await this.app.vault.adapter.exists(normalizePath(dataPath))) {
+         return false; // Data already exists
+    }
+
+    new Notice("Generating new visualization data...");
+    const vectors = await this.semanticSearchProvider.getVectors();
+    if (!vectors) {
+        new Notice("Vectors not loaded!");
+        return false;
+    }
+
+    const files = this.app.vault.getMarkdownFiles();
+    const exportData = [];
+    for (const file of files) {
+        const content = await this.app.vault.cachedRead(file);
+        const embedding = getDocumentVector(content, vectors);
+        if (embedding) {
+            exportData.push({ path: file.path, title: file.basename, embedding });
+        }
+    }
+    await this.app.vault.adapter.write(normalizePath(dataPath), JSON.stringify(exportData));
+    new Notice(`Data for ${exportData.length} notes exported.`);
+    return true; // New data was created
+}
 
 	onunload() {
+		this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
 		if (this.reindexIntervalId !== null) {
 			window.clearInterval(this.reindexIntervalId);
 		}
@@ -194,9 +387,9 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 }
 
 class ClauSettingTab extends PluginSettingTab {
-	plugin: QuickSwitcherPlusPlugin;
+	plugin: ClauPlugin;
 
-	constructor(app: App, plugin: QuickSwitcherPlusPlugin) {
+	constructor(app: App, plugin: ClauPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}

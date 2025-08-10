@@ -8,12 +8,12 @@ import {
 } from "obsidian";
 import { ISearchProvider } from "./search-provider";
 import { SearchResult } from "./search";
-import QuickSwitcherPlusPlugin from "main";
+import ClauPlugin from "main";
 
 export class MultiSelectModal extends SuggestModal<SearchResult> {
 	constructor(
 		app: App,
-		private plugin: QuickSwitcherPlusPlugin,
+		private plugin: ClauPlugin,
 		private searchProvider: ISearchProvider,
 		private selectionMap: Map<string, SearchResult>, // Receive the shared map
 	) {

@@ -11,66 +11,71 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const vaultPath =
-	"/Users/ruben/Library/Mobile Documents/iCloud~md~obsidian/Documents/git-notes-in-icloud/.obsidian/plugins/clau";
+    "/Users/ruben/Library/Mobile Documents/iCloud~md~obsidian/Documents/git-notes-in-icloud/.obsidian/plugins/clau";
 const prod = process.argv[2] === "production";
 
-const copyPlugin = {
-	name: "copy-to-vault",
-	setup: (build) => {
-		build.onEnd(async (result) => {
-			if (result.errors.length > 0) return;
-
-			console.log("Build succeeded, copying files...");
-			await fs.mkdir(vaultPath, { recursive: true });
-			await fs.cp("main.js", path.join(vaultPath, "main.js"));
-			await fs.cp("manifest.json", path.join(vaultPath, "manifest.json"));
-			// Use a try-catch for optional files like styles.css
-			try {
-				await fs.cp("styles.css", path.join(vaultPath, "styles.css"));
-			} catch (err) {
-				if (err.code !== "ENOENT") throw err;
-				// Ignore error if styles.css doesn't exist
-			}
-			console.log("Files copied to vault.");
-		});
-	},
+// --- NEW: A proper on-rebuild plugin ---
+const copyOnEndPlugin = {
+    name: "copy-on-end",
+    setup: (build) => {
+        build.onEnd(async (result) => {
+            if (result.errors.length > 0) return;
+            console.log(`Build ended for ${build.initialOptions.entryPoints[0]}, copying files...`);
+            await copyFiles();
+        });
+    },
 };
 
-const context = await esbuild.context({
-	banner: {
-		js: banner,
-	},
-	entryPoints: ["main.ts"],
-	bundle: true,
-	external: [
-		"obsidian",
-		"electron",
-		"@codemirror/autocomplete",
-		"@codemirror/collab",
-		"@codemirror/commands",
-		"@codemirror/language",
-		"@codemirror/lint",
-		"@codemirror/search",
-		"@codemirror/state",
-		"@codemirror/view",
-		"@lezer/common",
-		"@lezer/highlight",
-		"@lezer/lr",
-		...builtins,
-	],
-	format: "cjs",
-	target: "es2020",
-	logLevel: "info",
-	sourcemap: prod ? false : "inline",
-	treeShaking: true,
-	outfile: "main.js",
-	minify: prod,
-	plugins: [copyPlugin],
-});
+async function copyFiles() {
+    await fs.mkdir(vaultPath, { recursive: true });
+    // Main plugin files
+    await fs.cp("main.js", path.join(vaultPath, "main.js")).catch(() => {});
+    await fs.cp("manifest.json", path.join(vaultPath, "manifest.json")).catch(() => {});
+    await fs.cp("styles.css", path.join(vaultPath, "styles.css")).catch(() => {});
+    // Visualization bundle
+    await fs.cp("viz-bundle.js", path.join(vaultPath, "viz-bundle.js")).catch(() => {});
+}
+
+const mainPluginConfig = {
+    banner: { js: banner },
+    entryPoints: ["main.ts"],
+    bundle: true,
+    external: [
+        "obsidian", "electron", "@codemirror/autocomplete", "@codemirror/collab",
+        "@codemirror/commands", "@codemirror/language", "@codemirror/lint",
+        "@codemirror/search", "@codemirror/state", "@codemirror/view",
+        "@lezer/common", "@lezer/highlight", "@lezer/lr", ...builtins,
+    ],
+    format: "cjs",
+    target: "es2020",
+    logLevel: "info",
+    sourcemap: prod ? false : "inline",
+    treeShaking: true,
+    outfile: "main.js",
+    minify: prod,
+    plugins: [copyOnEndPlugin], // Use the plugin here
+};
+
+const vizAppConfig = {
+    entryPoints: ["viz-app.ts"],
+    bundle: true,
+    format: "iife",
+    target: "es2020",
+    logLevel: "info",
+    sourcemap: prod ? false : "inline",
+    treeShaking: true,
+    outfile: "viz-bundle.js",
+    minify: prod,
+    plugins: [copyOnEndPlugin], // And also here
+};
 
 if (prod) {
-	await context.rebuild();
-	process.exit(0);
+    await esbuild.build(mainPluginConfig);
+    await esbuild.build(vizAppConfig);
 } else {
-	await context.watch();
+    const mainCtx = await esbuild.context(mainPluginConfig);
+    const vizCtx = await esbuild.context(vizAppConfig);
+    await mainCtx.watch();
+    await vizCtx.watch();
+    console.log("Watching for changes...");
 }
