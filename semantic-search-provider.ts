@@ -1,4 +1,3 @@
-
 import { App, Notice, TFile } from "obsidian";
 import { ISearchProvider } from "./search-provider";
 import { SearchResult } from "./search";
@@ -67,8 +66,7 @@ export class SemanticSearchProvider implements ISearchProvider {
 		const { glovePathFormat, gloveFileCount, prunedGlovePath } =
 			this.settings;
 		// In Obsidian, window.innerWidth is a reasonable proxy for device type
-		const isMobile =
-			Math.min(window.innerWidth, window.innerHeight) < 768;
+		const isMobile = Math.min(window.innerWidth, window.innerHeight) < 768;
 		let pathsToLoad: string[] = [];
 
 		if (isMobile) {
@@ -88,9 +86,7 @@ export class SemanticSearchProvider implements ISearchProvider {
 			);
 			return this.vectors;
 		} else {
-			new Notice(
-				"Vector file path not configured for this device type.",
-			);
+			new Notice("Vector file path not configured for this device type.");
 			return null;
 		}
 	}

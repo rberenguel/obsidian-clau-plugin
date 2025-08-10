@@ -86,4 +86,3 @@ export class CombinedSearchProvider implements ISearchProvider {
 		);
 	}
 }
-

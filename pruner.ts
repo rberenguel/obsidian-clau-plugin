@@ -72,7 +72,7 @@ export async function buildEnhancedPrunedVectors(
 			finalVocab = new Set(checkpointData.finalVocab);
 
 			// Re-populate wordsWrittenToFile by reading the existing output file once
-			const existingOutputFile = 
+			const existingOutputFile =
 				app.vault.getAbstractFileByPath(outputPath);
 			if (existingOutputFile instanceof TFile) {
 				const prunedContent = await app.vault.read(existingOutputFile);
@@ -83,7 +83,7 @@ export async function buildEnhancedPrunedVectors(
 					);
 			}
 			notice.setMessage(
-				`Resuming from checkpoint. ${processedVaultWords.size} words processed.`, 
+				`Resuming from checkpoint. ${processedVaultWords.size} words processed.`,
 			);
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 		} catch (e) {
@@ -171,10 +171,10 @@ export async function buildEnhancedPrunedVectors(
 
 		if (
 			(i + 1) % CHECKPOINT_INTERVAL === 0 ||
-			 i + 1 === wordsToProcess.length
+			i + 1 === wordsToProcess.length
 		) {
 			notice.setMessage(
-				`Progress... ${i + 1}/${wordsToProcess.length}. Saving checkpoint.`, 
+				`Progress... ${i + 1}/${wordsToProcess.length}. Saving checkpoint.`,
 			);
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -193,7 +193,7 @@ export async function buildEnhancedPrunedVectors(
 			}
 
 			if (contentToAppend) {
-				const existingOutputFile = 
+				const existingOutputFile =
 					app.vault.getAbstractFileByPath(outputPath);
 				if (existingOutputFile instanceof TFile) {
 					await app.vault.append(existingOutputFile, contentToAppend);
@@ -258,8 +258,7 @@ export async function buildEnhancedPrunedVectors(
 			outputContent += `${gloveWord} ${vector.join(" ")}\n`;
 		}
 	}
-	const existingOutputFile = 
-		app.vault.getAbstractFileByPath(outputPath);
+	const existingOutputFile = app.vault.getAbstractFileByPath(outputPath);
 	if (existingOutputFile instanceof TFile) {
 		await app.vault.modify(existingOutputFile, outputContent);
 	} else {

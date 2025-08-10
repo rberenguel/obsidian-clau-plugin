@@ -4,24 +4,37 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
 
 ## Features
 
+- **Instant Search:** Searches as you type.
 - **Fuzzy Search:** Quickly find notes by title or content using fuzzy matching.
 - **Content Context:** See a snippet of the matching content directly in the search results.
 - **Multiple Search Providers:** Choose between a fast, in-memory MiniSearch index or Obsidian's native search engine.
 - **Real-time Indexing:** Automatically updates the search index when notes are created, modified, or deleted.
+- **Semantic Search:** Understands the meaning of your query to find relevant notes, even if exact keywords aren't present.
+
+### Some screenshots
+
+#### Private search
+
+![](https://raw.githubusercontent.com/rberenguel/obsidian-clau-plugin/main/media/clau-private.png)
+
+#### Semantic search
+
+![](https://raw.githubusercontent.com/rberenguel/obsidian-clau-plugin/main/media/clau-semantic.png)
 
 ## How to Use
 
 1.  **Open Search:** Use the command palette (`Ctrl/Cmd + P`) and search for "Clau: Open Search".
 2.  **Type your query:**
-    - **Private Search (`?`):** Start your query with a question mark to hide all context previews.
-    - **Ignore Privacy (`!`):** Start your query with an exclamation mark to show all context previews, even for notes in private folders or with private tags.
+    - **Private Search (`?`):** Start your query with a question mark to hide all context previews. _This needs to be first_.
+    - **Ignore Privacy (`!`):** Start your query with an exclamation mark to show all context previews, even for notes in private folders or with private tags. _This needs to be first_.
     - **Title-Only Search (` `):** Start your query with a space to search only note titles.
-    - **Fuzzy Search (`.`):** Start your query with a dot to enable typo-tolerant fuzzy matching.
+    - **Fuzzy Search (`.`):** Start your query with a dot to enable typo-tolerant fuzzy matching. _This needs to be first_. Does not combine with semantic search, and presenting context depends a lot on the search term.
     - **Concatenated Title Search:** Titles with no spaces (e.g., `thisHasNoSpaces`) can now be found by searching for parts of the concatenated words (e.g., `hasNo`). This works automatically for all title searches.
-    - **Term Exclusion (`-`):** Add a hyphen before a word to exclude notes containing it.
-    - **Path Exclusion (`-/`):** Add `-/` before a path to exclude notes from that folder.
-    - **Modifiers can be combined:** For example, `! . project spec -wip` will perform a fuzzy, title-only search for "project spec" while ignoring privacy and excluding notes with "wip".
-3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette.
+    - **Term Exclusion (`-`):** Add a hyphen before a word to exclude notes containing it. Does not combine with semantic search.
+    - **Path Exclusion (`-/`):** Add `-/` before a path to exclude notes from that folder. Does not combine with semantic search (yet).
+    - **Modifiers can be combined:** For example, `! . project spec -wip` will perform a fuzzy, title-only search for "project spec" while ignoring privacy and excluding notes with "wip". Note that order is important for most of these, and semantic search does not work yet with all of them.
+    - **Semantic Search Integration:** When enabled in settings, semantic search automatically enhances your search results by finding notes conceptually similar to your query, even if they don't contain the exact words. You can enable or disable this feature and configure its models in the plugin settings under "Semantic Search".
+3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette. Index is rebuilt automatically periodically.
 
 ### Copy Content from Multiple Files
 
@@ -57,6 +70,39 @@ Content of the second note...
 ## Why not use [OmniSearch](https://github.com/scambier/obsidian-omnisearch)?
 
 Tweaking your own plugin is kind of fun, also _sometimes_ I need plugins with the minimum amount of dependencies so I can confirm the code is safe. This is small enough I can check everything manually, and does _exactly_ what I want.
+
+## Semantic Search Setup
+
+To enable and use the semantic search functionality, you need to set up the GloVe word embeddings:
+
+1.  **Download GloVe Vectors:**
+
+    - Download the `glove.6B.zip` file from the [Stanford NLP website](https://nlp.stanford.edu/projects/glove/).
+    - Extract the `glove.6B.100d.txt` file (or your preferred dimension, `100d` works well on a Mac and iPads) from the zip.
+    - Place this file in a subfolder within your vault, for example, `your_vault/embeddings/glove.6B.100d.txt`.
+
+2.  **Prepare GloVe for Desktop (Splitting):**
+
+    - The plugin expects the GloVe file to be split into smaller parts for efficient loading on desktop (Obsidian doesn't "see" very large files for performance reasons).
+    - Use the `glove-tool.go` script (available in the plugin's GitHub repository) to split the file. Run it from your terminal:
+        ```bash
+        go run glove-tool.go split -input "your_vault/embeddings/glove.6B.100d.txt" -output-prefix "your_vault/embeddings/glove.6B.100d_part_"
+        ```
+    - This will create files like `glove.6B.100d_part_1.txt`, `glove.6B.100d_part_2.txt`, etc.
+    - In Clau settings, set "GloVe path format" to `embeddings/glove.6B.100d_part_{}.txt` and "Number of GloVe file parts" to the number of files generated.
+
+3.  (for mobile use) **Export Vault Vocabulary:**
+
+    - In Obsidian, go to Clau settings, navigate to the "Semantic Search" section, and click the "Export Now" button under "Export vault vocabulary".
+    - This will create a file named `embeddings/vault_vocab.txt` (or your configured path) containing all unique words from your notes.
+
+4.  (for mobile use) **Generate Pruned GloVe for Mobile (Optional but Recommended):**
+    - For better performance on mobile devices, it's recommended to create a smaller, pruned GloVe file containing only words relevant to your vault and their nearest neighbors.
+    - Use the `glove-tool.go` script again:
+        ```bash
+        go run glove-tool.go prune -glove-input "your_vault/embeddings/glove.6B.100d.txt" -vocab-input "your_vault/embeddings/vault_vocab.txt" -output "your_vault/embeddings/enhanced_pruned_vectors.txt"
+        ```
+    - In Clau settings, set "Pruned GloVe file path" to `embeddings/enhanced_pruned_vectors.txt`.
 
 ## Installation
 

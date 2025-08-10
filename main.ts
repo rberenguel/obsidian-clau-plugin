@@ -63,9 +63,17 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.miniSearchProvider = new MiniSearchProvider(this.app, this.settings);
-		this.titleContainsSearchProvider = new TitleContainsSearchProvider(this.app);
-		this.semanticSearchProvider = new SemanticSearchProvider(this.app, this.settings);
+		this.miniSearchProvider = new MiniSearchProvider(
+			this.app,
+			this.settings,
+		);
+		this.titleContainsSearchProvider = new TitleContainsSearchProvider(
+			this.app,
+		);
+		this.semanticSearchProvider = new SemanticSearchProvider(
+			this.app,
+			this.settings,
+		);
 
 		this.combinedSearchProvider = new CombinedSearchProvider(
 			this.miniSearchProvider,
@@ -273,13 +281,15 @@ class ClauSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Enable Semantic Search")
 			.setDesc("Enable or disable the semantic search functionality.")
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.enableSemanticSearch)
-				.onChange(async (value) => {
-					this.plugin.settings.enableSemanticSearch = value;
-					await this.plugin.saveSettings();
-					this.display(); // Re-render the settings tab
-				}));
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableSemanticSearch)
+					.onChange(async (value) => {
+						this.plugin.settings.enableSemanticSearch = value;
+						await this.plugin.saveSettings();
+						this.display(); // Re-render the settings tab
+					}),
+			);
 
 		const semanticSettingsEl = containerEl.createDiv();
 		if (!this.plugin.settings.enableSemanticSearch) {
@@ -290,120 +300,168 @@ class ClauSettingTab extends PluginSettingTab {
 		semanticSettingsEl.createEl("h3", { text: "Desktop / Full Model" });
 		new Setting(semanticSettingsEl)
 			.setName("GloVe path format")
-			.setDesc("Path to GloVe parts, using {} as a placeholder for the number.")
-			.addText(text => text
-				.setPlaceholder("e.g., embeddings/glove_part_{}.txt")
-				.setValue(this.plugin.settings.glovePathFormat)
-				.onChange(async (value) => {
-					this.plugin.settings.glovePathFormat = value;
-					await this.plugin.saveSettings();
-				}));
+			.setDesc(
+				"Path to GloVe parts, using {} as a placeholder for the number.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g., embeddings/glove_part_{}.txt")
+					.setValue(this.plugin.settings.glovePathFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.glovePathFormat = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Number of GloVe file parts")
-			.addText(text => text
-				.setPlaceholder("e.g., 4")
-				.setValue(String(this.plugin.settings.gloveFileCount))
-				.onChange(async (value) => {
-					this.plugin.settings.gloveFileCount = parseInt(value, 10) || 0;
-					await this.plugin.saveSettings();
-				}));
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g., 4")
+					.setValue(String(this.plugin.settings.gloveFileCount))
+					.onChange(async (value) => {
+						this.plugin.settings.gloveFileCount =
+							parseInt(value, 10) || 0;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		semanticSettingsEl.createEl("h3", { text: "Mobile / Pruned Model" });
 		new Setting(semanticSettingsEl)
 			.setName("Pruned GloVe file path")
-			.setDesc("Path to the single, smaller, pruned vector file for mobile.")
-			.addText(text => text
-				.setPlaceholder("e.g., embeddings/enhanced_pruned.txt")
-				.setValue(this.plugin.settings.prunedGlovePath)
-				.onChange(async (value) => {
-					this.plugin.settings.prunedGlovePath = value;
-					await this.plugin.saveSettings();
-				}));
+			.setDesc(
+				"Path to the single, smaller, pruned vector file for mobile.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g., embeddings/enhanced_pruned.txt")
+					.setValue(this.plugin.settings.prunedGlovePath)
+					.onChange(async (value) => {
+						this.plugin.settings.prunedGlovePath = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
-		semanticSettingsEl.createEl("h3", { text: "Advanced Pruning Settings" });
+		semanticSettingsEl.createEl("h3", {
+			text: "Advanced Pruning Settings",
+		});
 		new Setting(semanticSettingsEl)
 			.setName("Similarity threshold")
-			.setDesc("Only add neighbors with a similarity score above this value (0 to 1).")
-			.addText(text => text
-				.setPlaceholder("e.g., 0.6")
-				.setValue(String(this.plugin.settings.similarityThreshold))
-				.onChange(async (value) => {
-					this.plugin.settings.similarityThreshold = parseFloat(value) || 0;
-					await this.plugin.saveSettings();
-				}));
+			.setDesc(
+				"Only add neighbors with a similarity score above this value (0 to 1).",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g., 0.6")
+					.setValue(String(this.plugin.settings.similarityThreshold))
+					.onChange(async (value) => {
+						this.plugin.settings.similarityThreshold =
+							parseFloat(value) || 0;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Max vocabulary size")
-			.setDesc("A hard cap on the total number of words in the pruned file.")
-			.addText(text => text
-				.setPlaceholder("e.g., 100000")
-				.setValue(String(this.plugin.settings.maxVocabSize))
-				.onChange(async (value) => {
-					this.plugin.settings.maxVocabSize = parseInt(value, 10) || 100000;
-					await this.plugin.saveSettings();
-				}));
+			.setDesc(
+				"A hard cap on the total number of words in the pruned file.",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("e.g., 100000")
+					.setValue(String(this.plugin.settings.maxVocabSize))
+					.onChange(async (value) => {
+						this.plugin.settings.maxVocabSize =
+							parseInt(value, 10) || 100000;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		semanticSettingsEl.createEl("h3", { text: "Actions" });
 		new Setting(semanticSettingsEl)
 			.setName("Reload vector model")
-			.setDesc("Applies path changes and loads the appropriate model for your device.")
-			.addButton(button => button
-				.setButtonText("Reload Now")
-				.onClick(() => {
-					this.plugin.semanticSearchProvider['vectors'] = null;
+			.setDesc(
+				"Applies path changes and loads the appropriate model for your device.",
+			)
+			.addButton((button) =>
+				button.setButtonText("Reload Now").onClick(() => {
+					this.plugin.semanticSearchProvider["vectors"] = null;
 					this.plugin.semanticSearchProvider.loadVectorModel();
-				}));
+				}),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Re-build semantic index")
-			.setDesc("Re-scans your vault to create the search index. This can be slow.")
-			.addButton(button => button
-				.setButtonText("Re-build Now")
-				.setWarning()
-				.onClick(async () => {
-					button.setDisabled(true);
-					await this.plugin.semanticSearchProvider.buildIndex();
-					this.plugin.settings.lastRebuildIndexTime = Date.now();
-					await this.plugin.saveSettings();
-					button.setDisabled(false);
-					this.display(); // Re-render to show updated timestamp
-				}));
+			.setDesc(
+				"Re-scans your vault to create the search index. This can be slow.",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Re-build Now")
+					.setWarning()
+					.onClick(async () => {
+						button.setDisabled(true);
+						await this.plugin.semanticSearchProvider.buildIndex();
+						this.plugin.settings.lastRebuildIndexTime = Date.now();
+						await this.plugin.saveSettings();
+						button.setDisabled(false);
+						this.display(); // Re-render to show updated timestamp
+					}),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Last Re-build Semantic Index")
-			.setDesc(this.formatTimestamp(this.plugin.settings.lastRebuildIndexTime));
+			.setDesc(
+				this.formatTimestamp(this.plugin.settings.lastRebuildIndexTime),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Export vault vocabulary")
-			.setDesc("Exports a list of all unique words in your vault for external processing.")
-			.addButton(button => button
-				.setButtonText("Export Now")
-				.onClick(async () => {
+			.setDesc(
+				"Exports a list of all unique words in your vault for external processing.",
+			)
+			.addButton((button) =>
+				button.setButtonText("Export Now").onClick(async () => {
 					button.setDisabled(true);
-					await exportVaultVocabulary(this.plugin.app, "embeddings/vault_vocab.txt");
+					await exportVaultVocabulary(
+						this.plugin.app,
+						"embeddings/vault_vocab.txt",
+					);
 					this.plugin.settings.lastExportVocabularyTime = Date.now();
 					await this.plugin.saveSettings();
 					button.setDisabled(false);
 					this.display(); // Re-render to show updated timestamp
-				}));
+				}),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Last Export Vault Vocabulary / Pruned File Build")
-			.setDesc(this.formatTimestamp(this.plugin.settings.lastExportVocabularyTime));
+			.setDesc(
+				this.formatTimestamp(
+					this.plugin.settings.lastExportVocabularyTime,
+				),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Build enhanced pruned file")
-			.setDesc("WARNING: A very slow, long-running process that freezes the app potentially for several hours. Only do this if you really, really, really want to avoid the go script that will take some minutes")
-			.addButton(button => button
-				.setButtonText("Build Now")
-				.setWarning()
-				.onClick(async () => {
-					await buildEnhancedPrunedVectors(this.plugin.app, this.plugin.settings);
-					this.plugin.settings.lastExportVocabularyTime = Date.now();
-					await this.plugin.saveSettings();
-					this.display(); // Re-render to show updated timestamp
-				}));
+			.setDesc(
+				"WARNING: A very slow, long-running process that freezes the app potentially for several hours. Only do this if you really, really, really want to avoid the go script that will take some minutes",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("Build Now")
+					.setWarning()
+					.onClick(async () => {
+						await buildEnhancedPrunedVectors(
+							this.plugin.app,
+							this.plugin.settings,
+						);
+						this.plugin.settings.lastExportVocabularyTime =
+							Date.now();
+						await this.plugin.saveSettings();
+						this.display(); // Re-render to show updated timestamp
+					}),
+			);
 	}
 }
 
@@ -414,6 +472,7 @@ class ClauModal extends SuggestModal<SearchResult> {
 	private settings: ClauSettings;
 	private isPrivateSearch: boolean = false;
 	private ignorePrivacy: boolean = false;
+	private isLoading: boolean = false;
 
 	constructor(
 		app: App,
@@ -442,7 +501,17 @@ class ClauModal extends SuggestModal<SearchResult> {
 			this.query = query.substring(1);
 		}
 
-		return this.searchProvider.search(this.query);
+		// Disable input while loading
+		this.isLoading = true;
+		this.inputEl.disabled = true;
+
+		try {
+			return this.searchProvider.search(this.query);
+		} finally {
+			this.isLoading = false;
+			this.inputEl.disabled = false;
+			this.inputEl.focus(); // Re-focus the input element
+		}
 	}
 
 	async renderSuggestion(result: SearchResult, el: HTMLElement) {
@@ -622,4 +691,3 @@ class ClauModal extends SuggestModal<SearchResult> {
 		this.app.workspace.openLinkText(result.path, "", false);
 	}
 }
-
