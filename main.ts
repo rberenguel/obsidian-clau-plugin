@@ -30,6 +30,8 @@ export interface ClauSettings {
 	prunedGlovePath: string;
 	similarityThreshold: number;
 	maxVocabSize: number;
+	lastRebuildIndexTime: number | null;
+	lastExportVocabularyTime: number | null;
 }
 
 const DEFAULT_SETTINGS: ClauSettings = {
@@ -44,6 +46,8 @@ const DEFAULT_SETTINGS: ClauSettings = {
 	prunedGlovePath: "embeddings/enhanced_pruned_vectors.txt",
 	similarityThreshold: 0,
 	maxVocabSize: 100000,
+	lastRebuildIndexTime: null,
+	lastExportVocabularyTime: null,
 };
 
 export default class QuickSwitcherPlusPlugin extends Plugin {
@@ -91,6 +95,8 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			name: "Re-build index",
 			callback: async () => {
 				await this.combinedSearchProvider.build();
+				this.settings.lastRebuildIndexTime = Date.now();
+				await this.saveSettings();
 				new Notice("MiniSearch index has been manually rebuilt.");
 			},
 		});
@@ -185,6 +191,13 @@ class ClauSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: QuickSwitcherPlusPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	private formatTimestamp(timestamp: number | null): string {
+		if (!timestamp) {
+			return "Never";
+		}
+		return new Date(timestamp).toLocaleString();
 	}
 
 	display(): void {
@@ -351,8 +364,15 @@ class ClauSettingTab extends PluginSettingTab {
 				.onClick(async () => {
 					button.setDisabled(true);
 					await this.plugin.semanticSearchProvider.buildIndex();
+					this.plugin.settings.lastRebuildIndexTime = Date.now();
+					await this.plugin.saveSettings();
 					button.setDisabled(false);
+					this.display(); // Re-render to show updated timestamp
 				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Last Re-build Semantic Index")
+			.setDesc(this.formatTimestamp(this.plugin.settings.lastRebuildIndexTime));
 
 		new Setting(semanticSettingsEl)
 			.setName("Export vault vocabulary")
@@ -362,8 +382,15 @@ class ClauSettingTab extends PluginSettingTab {
 				.onClick(async () => {
 					button.setDisabled(true);
 					await exportVaultVocabulary(this.plugin.app, "embeddings/vault_vocab.txt");
+					this.plugin.settings.lastExportVocabularyTime = Date.now();
+					await this.plugin.saveSettings();
 					button.setDisabled(false);
+					this.display(); // Re-render to show updated timestamp
 				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Last Export Vault Vocabulary / Pruned File Build")
+			.setDesc(this.formatTimestamp(this.plugin.settings.lastExportVocabularyTime));
 
 		new Setting(semanticSettingsEl)
 			.setName("Build enhanced pruned file")
@@ -373,6 +400,9 @@ class ClauSettingTab extends PluginSettingTab {
 				.setWarning()
 				.onClick(async () => {
 					await buildEnhancedPrunedVectors(this.plugin.app, this.plugin.settings);
+					this.plugin.settings.lastExportVocabularyTime = Date.now();
+					await this.plugin.saveSettings();
+					this.display(); // Re-render to show updated timestamp
 				}));
 	}
 }
