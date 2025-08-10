@@ -116,7 +116,7 @@ If you have semantic search configured properly you can create a [UMAP](https://
 1.  Download the latest release files (`main.js`, `styles.css`, `manifest.json`) from the **Releases** page of the GitHub repository (or the zip file, contains all of these).
 2.  Find your Obsidian vault's plugins folder by going to `Settings` > `About` and clicking `Open` next to `Override config folder`. Inside that folder, navigate into the `plugins` directory.
 3.  Create a new folder named `clau`.
-4.  Copy the `main.js`, `manifest.json`, and `styles.css` files into the new `clau` folder.
+4.  Copy the `main.js`, `manifest.json`, `viz-bundle.js`, and `styles.css` files into the new `clau` folder.
 5.  In Obsidian, go to **Settings** > **Community Plugins**.
 6.  Make sure "Restricted mode" is turned off. Click the "Reload plugins" button.
 7.  Find "Clau" in the list and **enable** it.
