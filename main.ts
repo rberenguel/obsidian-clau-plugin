@@ -6,6 +6,7 @@ import {
 	MarkdownRenderer,
 	PluginSettingTab,
 	Setting,
+	Notice,
 } from "obsidian";
 import { SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
@@ -13,12 +14,22 @@ import { MiniSearchProvider } from "./minisearch-provider";
 import { TitleContainsSearchProvider } from "./title-contains-search-provider";
 import { CombinedSearchProvider } from "./combined-search-provider";
 import { MultiSelectModal } from "./multi-select-modal";
+import { SemanticSearchProvider } from "./semantic-search-provider";
+import { buildEnhancedPrunedVectors } from "./pruner";
+import { exportVaultVocabulary } from "./exporter";
 
-interface ClauSettings {
+export interface ClauSettings {
 	ignoredFolders: string;
 	privateTags: string;
 	privateFolders: string;
 	reindexInterval: number;
+	// Semantic Search Settings
+	enableSemanticSearch: boolean;
+	glovePathFormat: string;
+	gloveFileCount: number;
+	prunedGlovePath: string;
+	similarityThreshold: number;
+	maxVocabSize: number;
 }
 
 const DEFAULT_SETTINGS: ClauSettings = {
@@ -26,11 +37,19 @@ const DEFAULT_SETTINGS: ClauSettings = {
 	privateTags: "",
 	privateFolders: "",
 	reindexInterval: 10,
+	// Semantic Search Defaults
+	enableSemanticSearch: true,
+	glovePathFormat: "embeddings/glove.6B.100d_part_{}.txt",
+	gloveFileCount: 4,
+	prunedGlovePath: "embeddings/enhanced_pruned_vectors.txt",
+	similarityThreshold: 0,
+	maxVocabSize: 100000,
 };
 
 export default class QuickSwitcherPlusPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
 	titleContainsSearchProvider: TitleContainsSearchProvider;
+	semanticSearchProvider: SemanticSearchProvider;
 	combinedSearchProvider: CombinedSearchProvider;
 	settings: ClauSettings;
 	reindexIntervalId: number | null = null;
@@ -40,16 +59,14 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.miniSearchProvider = new MiniSearchProvider(
-			this.app,
-			this.settings,
-		);
-		this.titleContainsSearchProvider = new TitleContainsSearchProvider(
-			this.app,
-		);
+		this.miniSearchProvider = new MiniSearchProvider(this.app, this.settings);
+		this.titleContainsSearchProvider = new TitleContainsSearchProvider(this.app);
+		this.semanticSearchProvider = new SemanticSearchProvider(this.app, this.settings);
+
 		this.combinedSearchProvider = new CombinedSearchProvider(
 			this.miniSearchProvider,
 			this.titleContainsSearchProvider,
+			this.semanticSearchProvider,
 		);
 
 		await this.miniSearchProvider.build();
@@ -63,7 +80,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 					this.app,
 					this.combinedSearchProvider,
 					this,
-					"search? also: ? for private, ! to ignore privacy, space for title, . for fuzzy, -term, -/path",
+					"search? also: , for semantic, ? for private, ! to ignore privacy, space for title, . for fuzzy, -term, -/path",
 					this.settings,
 				).open();
 			},
@@ -74,9 +91,7 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			name: "Re-build index",
 			callback: async () => {
 				await this.combinedSearchProvider.build();
-				console.log(
-					`Clau: MiniSearch index has been manually rebuilt.`,
-				);
+				new Notice("MiniSearch index has been manually rebuilt.");
 			},
 		});
 
@@ -84,7 +99,6 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 			id: "open-clau-multi-select",
 			name: "Select files to copy content",
 			callback: () => {
-				// Pass the selection map to the modal
 				new MultiSelectModal(
 					this.app,
 					this,
@@ -159,7 +173,8 @@ export default class QuickSwitcherPlusPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		await this.combinedSearchProvider.build();
+		// Re-build minisearch index on settings change, semantic is manual
+		await this.miniSearchProvider.build();
 		this.setupReindexInterval();
 	}
 }
@@ -174,16 +189,13 @@ class ClauSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const { containerEl } = this;
-
 		containerEl.empty();
-
 		containerEl.createEl("h2", { text: "Clau Settings" });
 
+		// --- Standard Search Settings ---
 		new Setting(containerEl)
 			.setName("Ignored folders")
-			.setDesc(
-				"A comma-separated list of folder paths to ignore. Any file path starting with one of these will be excluded from the search.",
-			)
+			.setDesc("Comma-separated list of folder paths to ignore.")
 			.addText((text) =>
 				text
 					.setPlaceholder("e.g. templates/,private/")
@@ -241,6 +253,127 @@ class ClauSettingTab extends PluginSettingTab {
 						}
 					}),
 			);
+
+		// --- Semantic Search Settings ---
+		containerEl.createEl("h2", { text: "Semantic Search" });
+
+		new Setting(containerEl)
+			.setName("Enable Semantic Search")
+			.setDesc("Enable or disable the semantic search functionality.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableSemanticSearch)
+				.onChange(async (value) => {
+					this.plugin.settings.enableSemanticSearch = value;
+					await this.plugin.saveSettings();
+					this.display(); // Re-render the settings tab
+				}));
+
+		const semanticSettingsEl = containerEl.createDiv();
+		if (!this.plugin.settings.enableSemanticSearch) {
+			semanticSettingsEl.style.opacity = "0.5";
+			semanticSettingsEl.style.pointerEvents = "none";
+		}
+
+		semanticSettingsEl.createEl("h3", { text: "Desktop / Full Model" });
+		new Setting(semanticSettingsEl)
+			.setName("GloVe path format")
+			.setDesc("Path to GloVe parts, using {} as a placeholder for the number.")
+			.addText(text => text
+				.setPlaceholder("e.g., embeddings/glove_part_{}.txt")
+				.setValue(this.plugin.settings.glovePathFormat)
+				.onChange(async (value) => {
+					this.plugin.settings.glovePathFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Number of GloVe file parts")
+			.addText(text => text
+				.setPlaceholder("e.g., 4")
+				.setValue(String(this.plugin.settings.gloveFileCount))
+				.onChange(async (value) => {
+					this.plugin.settings.gloveFileCount = parseInt(value, 10) || 0;
+					await this.plugin.saveSettings();
+				}));
+
+		semanticSettingsEl.createEl("h3", { text: "Mobile / Pruned Model" });
+		new Setting(semanticSettingsEl)
+			.setName("Pruned GloVe file path")
+			.setDesc("Path to the single, smaller, pruned vector file for mobile.")
+			.addText(text => text
+				.setPlaceholder("e.g., embeddings/enhanced_pruned.txt")
+				.setValue(this.plugin.settings.prunedGlovePath)
+				.onChange(async (value) => {
+					this.plugin.settings.prunedGlovePath = value;
+					await this.plugin.saveSettings();
+				}));
+
+		semanticSettingsEl.createEl("h3", { text: "Advanced Pruning Settings" });
+		new Setting(semanticSettingsEl)
+			.setName("Similarity threshold")
+			.setDesc("Only add neighbors with a similarity score above this value (0 to 1).")
+			.addText(text => text
+				.setPlaceholder("e.g., 0.6")
+				.setValue(String(this.plugin.settings.similarityThreshold))
+				.onChange(async (value) => {
+					this.plugin.settings.similarityThreshold = parseFloat(value) || 0;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Max vocabulary size")
+			.setDesc("A hard cap on the total number of words in the pruned file.")
+			.addText(text => text
+				.setPlaceholder("e.g., 100000")
+				.setValue(String(this.plugin.settings.maxVocabSize))
+				.onChange(async (value) => {
+					this.plugin.settings.maxVocabSize = parseInt(value, 10) || 100000;
+					await this.plugin.saveSettings();
+				}));
+
+		semanticSettingsEl.createEl("h3", { text: "Actions" });
+		new Setting(semanticSettingsEl)
+			.setName("Reload vector model")
+			.setDesc("Applies path changes and loads the appropriate model for your device.")
+			.addButton(button => button
+				.setButtonText("Reload Now")
+				.onClick(() => {
+					this.plugin.semanticSearchProvider['vectors'] = null;
+					this.plugin.semanticSearchProvider.loadVectorModel();
+				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Re-build semantic index")
+			.setDesc("Re-scans your vault to create the search index. This can be slow.")
+			.addButton(button => button
+				.setButtonText("Re-build Now")
+				.setWarning()
+				.onClick(async () => {
+					button.setDisabled(true);
+					await this.plugin.semanticSearchProvider.buildIndex();
+					button.setDisabled(false);
+				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Export vault vocabulary")
+			.setDesc("Exports a list of all unique words in your vault for external processing.")
+			.addButton(button => button
+				.setButtonText("Export Now")
+				.onClick(async () => {
+					button.setDisabled(true);
+					await exportVaultVocabulary(this.plugin.app, "embeddings/vault_vocab.txt");
+					button.setDisabled(false);
+				}));
+
+		new Setting(semanticSettingsEl)
+			.setName("Build enhanced pruned file")
+			.setDesc("WARNING: A very slow, long-running process that freezes the app potentially for several hours. Only do this if you really, really, really want to avoid the go script that will take some minutes")
+			.addButton(button => button
+				.setButtonText("Build Now")
+				.setWarning()
+				.onClick(async () => {
+					await buildEnhancedPrunedVectors(this.plugin.app, this.plugin.settings);
+				}));
 	}
 }
 
@@ -282,13 +415,16 @@ class ClauModal extends SuggestModal<SearchResult> {
 		return this.searchProvider.search(this.query);
 	}
 
-	renderSuggestion(result: SearchResult, el: HTMLElement) {
+	async renderSuggestion(result: SearchResult, el: HTMLElement) {
 		el.classList.add("clau-suggestion-item");
 		el.empty();
 
+		// Determine the string to use for highlighting
+		const highlightQuery = result.highlightWord || this.query;
+
 		const titleEl = el.createDiv({ cls: "clau-suggestion-title" });
 		titleEl.setText(result.title);
-		this.highlightRenderedHTML(titleEl, this.query);
+		this.highlightRenderedHTML(titleEl, highlightQuery);
 
 		el.createEl("small", {
 			text: result.path,
@@ -300,14 +436,14 @@ class ClauModal extends SuggestModal<SearchResult> {
 				const contextEl = el.createDiv({
 					cls: "clau-suggestion-context",
 				});
-				MarkdownRenderer.render(
+				await MarkdownRenderer.render(
 					this.app,
 					result.context,
 					contextEl,
 					result.path,
 					this.plugin,
 				);
-				this.highlightRenderedHTML(contextEl, this.query);
+				this.highlightRenderedHTML(contextEl, highlightQuery);
 			}
 			return;
 		}
@@ -371,14 +507,14 @@ class ClauModal extends SuggestModal<SearchResult> {
 				const contextEl = el.createDiv({
 					cls: "clau-suggestion-context",
 				});
-				MarkdownRenderer.render(
+				await MarkdownRenderer.render(
 					this.app,
 					result.context,
 					contextEl,
 					result.path,
 					this.plugin,
 				);
-				this.highlightRenderedHTML(contextEl, this.query);
+				this.highlightRenderedHTML(contextEl, highlightQuery);
 			}
 		}
 	}
@@ -456,3 +592,4 @@ class ClauModal extends SuggestModal<SearchResult> {
 		this.app.workspace.openLinkText(result.path, "", false);
 	}
 }
+

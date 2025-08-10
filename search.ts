@@ -6,6 +6,7 @@ export interface SearchResult {
 	title: string;
 	path: string;
 	context?: string;
+	highlightWord?: string; // For semantic search highlighting
 }
 
 export class SearchIndex implements ISearchProvider {
