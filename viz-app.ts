@@ -21,14 +21,14 @@ function valueToHexColor(value: number, min: number, max: number): number {
         const jsonData = await app.vault.adapter.read(dataPath);
         const pointsData = JSON.parse(jsonData);
 
-        const umap = new UMAP({ nComponents: 2, nNeighbors: 15, minDist: 0.03 });
+        const umap = new UMAP({ nComponents: 2, nNeighbors: 18, minDist: 0.003 });
         const embeddings = pointsData.map((p: any) => p.embedding);
         const projection = await umap.fitAsync(embeddings);
 
         const pixiApp = new PIXI.Application();
         await pixiApp.init({
             resizeTo: container,
-            backgroundColor: 0x1e1e1e,
+            backgroundColor: 0x000000,
             antialias: true,
         });
         container.appendChild(pixiApp.canvas);
@@ -38,7 +38,7 @@ function valueToHexColor(value: number, min: number, max: number): number {
         viewport.drag().pinch().wheel().decelerate();
 
         const highlightContainer = new PIXI.Container();
-        viewport.addChild(highlightContainer);
+        // The highlightContainer is now added to the viewport *after* the points.
 
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         projection.forEach(p => {
@@ -83,6 +83,10 @@ function valueToHexColor(value: number, min: number, max: number): number {
             allPointsGfx.push({ path: p.path, gfx: pointGfx, title: p.title, highlightGfx, x, y });
         });
 
+        // By adding the highlightContainer here, it and all its children will be
+        // rendered on top of the points that were added in the loop above.
+        viewport.addChild(highlightContainer);
+
         if (onViewportUpdate) {
             viewport.on('zoomed', (event) => onViewportUpdate(viewport, allPointsGfx));
             viewport.on('moved', (event) => onViewportUpdate(viewport, allPointsGfx));
@@ -91,7 +95,6 @@ function valueToHexColor(value: number, min: number, max: number): number {
         viewport.moveCenter((maxX - minX) * scale / 2, (maxY - minY) * scale / 2);
         viewport.fitWorld();
 
-        // --- NEW: The search function calls the new searchCallback ---
         const search = async (query: string) => {
             allPointsGfx.forEach(p => p.highlightGfx.clear());
 
@@ -99,7 +102,6 @@ function valueToHexColor(value: number, min: number, max: number): number {
                 return;
             }
             showSearchUI(true);
-            // Use the passed callback for search, asking for a larger topK
             const searchResults = await searchCallback(query, 50);
             showSearchUI(false);
             const resultPaths = new Set(searchResults.map((r: any) => r.path));
