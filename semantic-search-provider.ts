@@ -1,12 +1,13 @@
-import { App, Notice, TFile } from "obsidian";
+import { App, Notice, TFile, normalizePath } from "obsidian";
 import { ISearchProvider } from "./search-provider";
 import { SearchResult } from "./search";
-import { WordVectorMap, EmbeddingModel } from "./model";
+import { WordVectorMap, EmbeddingModel, CustomVector } from "./model";
 import { IndexedItem, buildIndex as buildSemanticIndex } from "./indexer";
 import { searchIndex } from "./searcher";
 import { ClauSettings } from "settings";
 
 const INDEX_PATH = ".obsidian/plugins/clau/semantic-index.json";
+const CUSTOM_VECTORS_PATH = ".obsidian/plugins/clau/custom-vectors.json";
 
 export class SemanticSearchProvider implements ISearchProvider {
 	private app: App;
@@ -35,22 +36,19 @@ export class SemanticSearchProvider implements ISearchProvider {
 			return [];
 		}
 
-		// Pass the topK parameter to searchIndex
 		const semanticResults = searchIndex(query, index, vectors, topK);
 
-		// Adapt results to the common SearchResult format
 		return semanticResults.map((item) => {
 			const file = this.app.vault.getAbstractFileByPath(item.file);
 			return {
 				title: file ? file.name.replace(/\.md$/, "") : item.file,
 				path: item.file,
-				context: item.text, // The chunk of text is the context
+				context: item.text,
 				highlightWord: item.highlightWord,
 			};
 		});
 	}
 
-	// --- Lazy Loaders for Model and Index ---
 	async getVectors(): Promise<WordVectorMap | null> {
 		if (this.vectors) return this.vectors;
 		return await this.loadVectorModel();
@@ -62,34 +60,95 @@ export class SemanticSearchProvider implements ISearchProvider {
 		return this.index;
 	}
 
-	// --- Methods for Building/Loading Data ---
 	async loadVectorModel(): Promise<WordVectorMap | null> {
-		const { glovePathFormat, gloveFileCount, prunedGlovePath } =
-			this.settings;
-		// In Obsidian, window.innerWidth is a reasonable proxy for device type
+		const { glovePathFormat, gloveFileCount, prunedGlovePath } = this.settings;
 		const isMobile = Math.min(window.innerWidth, window.innerHeight) < 768;
 		let pathsToLoad: string[] = [];
+		let modelIdentifier = "";
 
 		if (isMobile) {
-			if (prunedGlovePath) pathsToLoad.push(prunedGlovePath);
+			if (prunedGlovePath) {
+				pathsToLoad.push(prunedGlovePath);
+				modelIdentifier = prunedGlovePath;
+			}
 		} else {
 			if (glovePathFormat && gloveFileCount > 0) {
 				for (let i = 1; i <= gloveFileCount; i++) {
 					pathsToLoad.push(glovePathFormat.replace("{}", String(i)));
 				}
+				modelIdentifier = glovePathFormat;
 			}
 		}
 
 		if (pathsToLoad.length > 0) {
-			this.vectors = await EmbeddingModel.getInstance(
-				this.app,
-				pathsToLoad,
-			);
+			this.vectors = await EmbeddingModel.getInstance(this.app, pathsToLoad);
+			await this.loadCustomVectors(modelIdentifier);
 			return this.vectors;
 		} else {
 			new Notice("Vector file path not configured for this device type.");
 			return null;
 		}
+	}
+
+	async loadCustomVectors(baseModelIdentifier: string) {
+		if (!this.vectors || !(await this.app.vault.adapter.exists(CUSTOM_VECTORS_PATH))) {
+			return;
+		}
+
+		try {
+			const data = await this.app.vault.adapter.read(CUSTOM_VECTORS_PATH);
+			const customVectors: CustomVector[] = JSON.parse(data);
+			const firstVector = this.vectors.values().next().value;
+			if (!firstVector) return;
+			const dimension = firstVector.length;
+
+			for (const customVector of customVectors) {
+				if (customVector.baseModel === baseModelIdentifier && customVector.dimension === dimension) {
+					this.vectors.set(customVector.word, customVector.vector);
+				} else {
+					new Notice(`Skipping custom vector for "${customVector.word}" due to model/dimension mismatch.`);
+					console.warn("Custom vector mismatch:", {
+						word: customVector.word,
+						expectedModel: baseModelIdentifier,
+						actualModel: customVector.baseModel,
+						expectedDim: dimension,
+						actualDim: customVector.dimension,
+					});
+				}
+			}
+		} catch (e) {
+			console.error("Failed to load custom vectors:", e);
+		}
+	}
+
+	async saveCustomVector(word: string, vector: number[]) {
+		let customVectors: CustomVector[] = [];
+		if (await this.app.vault.adapter.exists(CUSTOM_VECTORS_PATH)) {
+			try {
+				const data = await this.app.vault.adapter.read(CUSTOM_VECTORS_PATH);
+				customVectors = JSON.parse(data);
+			} catch (e) {
+				console.error("Failed to read custom vectors file:", e);
+			}
+		}
+
+		const newCustomVector: CustomVector = {
+			word: word.toLowerCase(),
+			vector: vector,
+			createdAt: new Date().toISOString(),
+			baseModel: this.settings.glovePathFormat,
+			dimension: vector.length,
+		};
+
+		const existingIndex = customVectors.findIndex(v => v.word === newCustomVector.word);
+		if (existingIndex > -1) {
+			customVectors[existingIndex] = newCustomVector;
+		} else {
+			customVectors.push(newCustomVector);
+		}
+
+		await this.app.vault.adapter.write(CUSTOM_VECTORS_PATH, JSON.stringify(customVectors, null, 2));
+		this.vectors?.set(newCustomVector.word, newCustomVector.vector);
 	}
 
 	async loadSearchIndexFromFile(): Promise<IndexedItem[]> {
@@ -105,50 +164,27 @@ export class SemanticSearchProvider implements ISearchProvider {
 
 	async saveSearchIndexToFile() {
 		if (this.index) {
-			await this.app.vault.adapter.write(
-				INDEX_PATH,
-				JSON.stringify(this.index),
-			);
+			await this.app.vault.adapter.write(INDEX_PATH, JSON.stringify(this.index));
 		}
 	}
 
 	public async buildIndex() {
 		const vectors = await this.getVectors();
 		if (!vectors) {
-			new Notice(
-				"Vector model could not be loaded. Check settings.",
-				5000,
-			);
+			new Notice("Vector model could not be loaded. Check settings.", 5000);
 			return;
 		}
-		new Notice(
-			`Building semantic index using ${this.settings.semanticIndexingStrategy} strategy...`,
-		);
-		this.index = await buildSemanticIndex(
-			this.app,
-			vectors,
-			this.settings.semanticIndexingStrategy,
-		);
+		new Notice(`Building semantic index using ${this.settings.semanticIndexingStrategy} strategy...`);
+		this.index = await buildSemanticIndex(this.app, vectors, this.settings.semanticIndexingStrategy);
 		await this.saveSearchIndexToFile();
 		new Notice(`Index built with ${this.index.length} items.`);
 	}
 
-	// --- ISearchProvider stubs for file events (not used by semantic search) ---
-	async build() {
-		/* No-op, handled by buildIndex from settings */
-	}
-	async add(file: TFile) {
-		/* No-op */
-	}
-	async remove(file: TFile) {
-		/* No-op */
-	}
-	async rename(file: TFile, oldPath: string) {
-		/* No-op */
-	}
-	async update(file: TFile) {
-		/* No-op */
-	}
+	async build() { }
+	async add(file: TFile) { }
+	async remove(file: TFile) { }
+	async rename(file: TFile, oldPath: string) { }
+	async update(file: TFile) { }
 	getSize(): number {
 		return this.index?.length || 0;
 	}

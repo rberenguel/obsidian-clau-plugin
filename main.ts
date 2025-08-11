@@ -1,5 +1,5 @@
 // main.ts
-import { Plugin, TFile, Notice, normalizePath } from "obsidian";
+import { Plugin, TFile, Notice, normalizePath, Editor } from "obsidian";
 import { SearchResult } from "./search";
 import { MiniSearchProvider } from "./minisearch-provider";
 import { TitleContainsSearchProvider } from "./title-contains-search-provider";
@@ -10,6 +10,7 @@ import { getDocumentVector } from "./searcher";
 import { ClauSettings, DEFAULT_SETTINGS, ClauSettingTab } from "./settings";
 import { VAULT_VIZ_VIEW_TYPE, VaultVizView } from "./vault-viz-view";
 import { ClauModal } from "./search-modal";
+import { VectorizeModal } from "./vectorize-modal";
 
 export default class ClauPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
@@ -99,6 +100,19 @@ export default class ClauPlugin extends Plugin {
 					active: true,
 				});
 				this.app.workspace.revealLeaf(newLeaf);
+			},
+		});
+
+		this.addCommand({
+			id: "vectorize-selected-word",
+			name: "Vectorize selected word",
+			editorCallback: (editor: Editor) => {
+				const selection = editor.getSelection();
+				if (!selection.trim()) {
+					new Notice("Please select a word to vectorize.");
+					return;
+				}
+				new VectorizeModal(this.app, this, selection.trim()).open();
 			},
 		});
 
