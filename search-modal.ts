@@ -11,6 +11,7 @@ export class ClauModal extends SuggestModal<SearchResult> {
 	private settings: ClauSettings;
 	private isPrivateSearch: boolean = false;
 	private ignorePrivacy: boolean = false;
+	private isLoading: boolean = false;
 
 	constructor(
 		app: App,
@@ -26,14 +27,24 @@ export class ClauModal extends SuggestModal<SearchResult> {
 		this.settings = settings;
 	}
 
-	getSuggestions(query: string): Promise<SearchResult[]> {
-		this.query = query;
-		this.isPrivateSearch = query.startsWith("?");
-		this.ignorePrivacy = query.startsWith("!");
-		if (this.isPrivateSearch || this.ignorePrivacy) {
-			this.query = query.substring(1);
+	async getSuggestions(query: string): Promise<SearchResult[]> {
+		if (this.isLoading) {
+			return [];
 		}
-		return this.searchProvider.search(this.query);
+
+		this.isLoading = true;
+		try {
+			this.query = query;
+			this.isPrivateSearch = query.startsWith("?");
+			this.ignorePrivacy = query.startsWith("!");
+			if (this.isPrivateSearch || this.ignorePrivacy) {
+				this.query = query.substring(1);
+			}
+			const results = await this.searchProvider.search(this.query);
+			return results;
+		} finally {
+			this.isLoading = false;
+		}
 	}
 
 	async renderSuggestion(result: SearchResult, el: HTMLElement) {

@@ -111,7 +111,6 @@ export class VectorizeModal extends Modal {
         // --- End SIF Calculation ---
 
         await semanticSearchProvider.saveCustomVector(this.word, newVector);
-        new Notice(`Custom vector for "${this.word}" has been generated and saved.`);
     }
 
     onClose() {

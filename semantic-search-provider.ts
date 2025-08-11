@@ -18,13 +18,16 @@ function createContextSnippet(
 		return text.length > 150 ? text.substring(0, 147) + "..." : text;
 	}
 
-	const index = text.toLowerCase().indexOf(highlightWord.toLowerCase());
-	if (index === -1) {
+	const regex = new RegExp(`\b${highlightWord}\b`, "i");
+	const match = text.match(regex);
+
+	if (!match || typeof match.index === "undefined") {
 		return text.length > 150 ? text.substring(0, 147) + "..." : text;
 	}
 
-	const start = Math.max(0, index - 50);
-	const end = Math.min(text.length, index + highlightWord.length + 50);
+	const index = match.index;
+	const start = Math.max(0, index - 40);
+	const end = Math.min(text.length, index + highlightWord.length + 40);
 
 	let snippet = text.substring(start, end);
 	if (start > 0) snippet = "..." + snippet;
@@ -170,7 +173,26 @@ export class SemanticSearchProvider implements ISearchProvider {
 		}
 	}
 
-	async saveCustomVector(word: string, vector: number[]) {
+	async saveCustomVector(word: string, rawVector: number[]) {
+		let finalVector = rawVector;
+		if (this.settings.semanticIndexingStrategy === "SIF") {
+			if (!this.sifPrincipalComponent) {
+				new Notice(
+					"SIF principal component not available. Please re-build the index first.",
+				);
+				return;
+			}
+			// Apply the PCA correction
+			let dotProduct = 0;
+			for (let j = 0; j < finalVector.length; j++) {
+				dotProduct += finalVector[j] * this.sifPrincipalComponent[j];
+			}
+			const projected = this.sifPrincipalComponent.map(
+				(val) => val * dotProduct,
+			);
+			finalVector = finalVector.map((val, j) => val - projected[j]);
+		}
+
 		let customVectors: CustomVector[] = [];
 		if (await this.app.vault.adapter.exists(CUSTOM_VECTORS_PATH)) {
 			try {
@@ -185,10 +207,10 @@ export class SemanticSearchProvider implements ISearchProvider {
 
 		const newCustomVector: CustomVector = {
 			word: word.toLowerCase(),
-			vector: vector,
+			vector: finalVector,
 			createdAt: new Date().toISOString(),
 			baseModel: this.settings.glovePathFormat,
-			dimension: vector.length,
+			dimension: finalVector.length,
 		};
 
 		const existingIndex = customVectors.findIndex(
@@ -205,6 +227,10 @@ export class SemanticSearchProvider implements ISearchProvider {
 			JSON.stringify(customVectors, null, 2),
 		);
 		this.vectors?.set(newCustomVector.word, newCustomVector.vector);
+		new Notice(
+			`Custom vector for "${word}" has been saved. Re-building index...`,
+		);
+		await this.buildIndex();
 	}
 
 	async loadSearchIndexFromFile(): Promise<IndexedItem[]> {
