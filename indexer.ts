@@ -1,11 +1,91 @@
 // src/indexer.ts
 import { App } from "obsidian";
-import { EmbeddingModel, getDocumentVector } from "./model";
-import { WordVectorMap } from "./model";
+import { WordVectorMap, SemanticIndexingStrategy } from "./model";
+import { PCA } from "ml-pca";
 
-// Chunking strategy: split by paragraphs
+// --- Vector Calculation ---
+
+function getAverageVector(
+	words: string[],
+	vectors: WordVectorMap,
+): number[] | null {
+	const knownVectors = words
+		.map((word) => vectors.get(word))
+		.filter((v) => v) as number[][];
+
+	if (knownVectors.length === 0) return null;
+
+	const dimension = knownVectors[0].length;
+	const sumVector = new Array(dimension).fill(0);
+
+	for (const vec of knownVectors) {
+		for (let i = 0; i < dimension; i++) {
+			sumVector[i] += vec[i];
+		}
+	}
+
+	return sumVector.map((val) => val / knownVectors.length);
+}
+
+function getTfIdfVector(
+	words: string[],
+	vectors: WordVectorMap,
+	tfIdfScores: Map<string, number>,
+): number[] | null {
+	const knownVectors = words
+		.map((word) => ({ word, vec: vectors.get(word) }))
+		.filter((item) => item.vec) as { word: string; vec: number[] }[];
+
+	if (knownVectors.length === 0) return null;
+
+	const dimension = knownVectors[0].vec.length;
+	const sumVector = new Array(dimension).fill(0);
+	let totalWeight = 0;
+
+	for (const { word, vec } of knownVectors) {
+		const tfIdf = tfIdfScores.get(word) || 0;
+		for (let i = 0; i < dimension; i++) {
+			sumVector[i] += vec[i] * tfIdf;
+		}
+		totalWeight += tfIdf;
+	}
+
+	if (totalWeight === 0) return null;
+	return sumVector.map((val) => val / totalWeight);
+}
+
+function getSifVector(
+	words: string[],
+	vectors: WordVectorMap,
+	wordProbs: Map<string, number>,
+	smoothing: number,
+): number[] | null {
+	const knownVectors = words
+		.map((word) => ({ word, vec: vectors.get(word) }))
+		.filter((item) => item.vec) as { word: string; vec: number[] }[];
+
+	if (knownVectors.length === 0) return null;
+
+	const dimension = knownVectors[0].vec.length;
+	const sumVector = new Array(dimension).fill(0);
+
+	for (const { word, vec } of knownVectors) {
+		const prob = wordProbs.get(word) || 0;
+		const weight = smoothing / (smoothing + prob);
+		for (let i = 0; i < dimension; i++) {
+			sumVector[i] += vec[i] * weight;
+		}
+	}
+
+	return sumVector.map((val) => val / knownVectors.length);
+}
+
+// --- Chunking ---
+
 const chunkText = (text: string): string[] =>
 	text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+
+// --- Indexing ---
 
 export interface IndexedItem {
 	file: string;
@@ -16,24 +96,110 @@ export interface IndexedItem {
 export const buildIndex = async (
 	app: App,
 	vectors: WordVectorMap,
+	strategy: SemanticIndexingStrategy,
 ): Promise<IndexedItem[]> => {
 	const index: IndexedItem[] = [];
 	const files = app.vault.getMarkdownFiles();
+	const documents: { file: string; content: string; words: string[] }[] = [];
 
+	// First pass: collect all documents and words
 	for (const file of files) {
 		const content = await app.vault.cachedRead(file);
-		const chunks = chunkText(content);
+		const words = content.toLowerCase().match(/\b\w+\b/g) || [];
+		documents.push({ file: file.path, content, words });
+	}
+
+	// --- Pre-calculation for strategies ---
+	const idf = new Map<string, number>();
+	const wordProbs = new Map<string, number>();
+	let totalWords = 0;
+
+	if (strategy === SemanticIndexingStrategy.TFIDF) {
+		const docCount = documents.length;
+		const docFreq = new Map<string, number>();
+		for (const doc of documents) {
+			const uniqueWords = new Set(doc.words);
+			for (const word of uniqueWords) {
+				docFreq.set(word, (docFreq.get(word) || 0) + 1);
+			}
+		}
+		for (const [word, freq] of docFreq.entries()) {
+			idf.set(word, Math.log(docCount / freq));
+		}
+	} else if (strategy === SemanticIndexingStrategy.SIF) {
+		const wordCounts = new Map<string, number>();
+		for (const doc of documents) {
+			for (const word of doc.words) {
+				wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+				totalWords++;
+			}
+		}
+		for (const [word, count] of wordCounts.entries()) {
+			wordProbs.set(word, count / totalWords);
+		}
+	}
+
+	// Second pass: build the index based on the selected strategy
+	const chunkEmbeddings: number[][] = [];
+	const chunkInfos: { file: string; text: string }[] = [];
+
+	for (const doc of documents) {
+		const chunks = chunkText(doc.content);
 		for (const chunk of chunks) {
-			// No need to load the model here, just use the vectors
-			const embedding = getDocumentVector(chunk, vectors);
+			const chunkWords = chunk.toLowerCase().match(/\b\w+\b/g) || [];
+			let embedding: number[] | null = null;
+
+			switch (strategy) {
+				case SemanticIndexingStrategy.Average:
+					embedding = getAverageVector(chunkWords, vectors);
+					break;
+				case SemanticIndexingStrategy.TFIDF:
+					const tf = new Map<string, number>();
+					for (const word of chunkWords) {
+						tf.set(word, (tf.get(word) || 0) + 1);
+					}
+					const tfIdfScores = new Map<string, number>();
+					for (const [word, count] of tf.entries()) {
+						tfIdfScores.set(word, (count / chunkWords.length) * (idf.get(word) || 0));
+					}
+					embedding = getTfIdfVector(chunkWords, vectors, tfIdfScores);
+					break;
+				case SemanticIndexingStrategy.SIF:
+					embedding = getSifVector(chunkWords, vectors, wordProbs, 1e-3);
+					break;
+			}
+
 			if (embedding) {
-				index.push({
-					file: file.path,
-					text: chunk,
-					embedding: embedding,
-				});
+				chunkEmbeddings.push(embedding);
+				chunkInfos.push({ file: doc.file, text: chunk });
 			}
 		}
 	}
+
+	// --- Post-processing for SIF ---
+	if (strategy === SemanticIndexingStrategy.SIF && chunkEmbeddings.length > 0) {
+		const pca = new PCA(chunkEmbeddings);
+		const principalComponent = pca.getEigenvectors().getColumn(0);
+
+		for (let i = 0; i < chunkEmbeddings.length; i++) {
+			const embedding = chunkEmbeddings[i];
+			let dotProduct = 0;
+			for (let j = 0; j < embedding.length; j++) {
+				dotProduct += embedding[j] * principalComponent[j];
+			}
+			const projected = principalComponent.map((val) => val * dotProduct);
+			chunkEmbeddings[i] = embedding.map((val, j) => val - projected[j]);
+		}
+	}
+
+	// Final pass: create the index
+	for (let i = 0; i < chunkEmbeddings.length; i++) {
+		index.push({
+			file: chunkInfos[i].file,
+			text: chunkInfos[i].text,
+			embedding: chunkEmbeddings[i],
+		});
+	}
+
 	return index;
 };

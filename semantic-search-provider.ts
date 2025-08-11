@@ -121,8 +121,14 @@ export class SemanticSearchProvider implements ISearchProvider {
 			);
 			return;
 		}
-		new Notice("Building semantic index...");
-		this.index = await buildSemanticIndex(this.app, vectors);
+		new Notice(
+			`Building semantic index using ${this.settings.semanticIndexingStrategy} strategy...`,
+		);
+		this.index = await buildSemanticIndex(
+			this.app,
+			vectors,
+			this.settings.semanticIndexingStrategy,
+		);
 		await this.saveSearchIndexToFile();
 		new Notice(`Index built with ${this.index.length} items.`);
 	}

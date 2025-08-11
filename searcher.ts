@@ -1,6 +1,28 @@
-import { getDocumentVector } from "./model";
 import { IndexedItem } from "./indexer";
 import { WordVectorMap } from "./model";
+
+export function getDocumentVector(
+	text: string,
+	vectors: WordVectorMap,
+): number[] | null {
+	const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+	const knownVectors = words
+		.map((word) => vectors.get(word))
+		.filter((v) => v) as number[][];
+
+	if (knownVectors.length === 0) return null;
+
+	const dimension = knownVectors[0].length;
+	const sumVector = new Array(dimension).fill(0);
+
+	for (const vec of knownVectors) {
+		for (let i = 0; i < dimension; i++) {
+			sumVector[i] += vec[i];
+		}
+	}
+
+	return sumVector.map((val) => val / knownVectors.length);
+}
 
 // Add 'highlightWord' to the SearchResult type
 export type SearchResult = IndexedItem & {

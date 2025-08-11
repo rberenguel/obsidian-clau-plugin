@@ -6,7 +6,7 @@ import { TitleContainsSearchProvider } from "./title-contains-search-provider";
 import { CombinedSearchProvider } from "./combined-search-provider";
 import { MultiSelectModal } from "./multi-select-modal";
 import { SemanticSearchProvider } from "./semantic-search-provider";
-import { getDocumentVector } from "./model";
+import { getDocumentVector } from "./searcher";
 import { ClauSettings, DEFAULT_SETTINGS, ClauSettingTab } from "./settings";
 import { VAULT_VIZ_VIEW_TYPE, VaultVizView } from "./vault-viz-view";
 import { ClauModal } from "./search-modal";

@@ -4,6 +4,8 @@ import ClauPlugin from "./main";
 import { buildEnhancedPrunedVectors } from "./pruner";
 import { exportVaultVocabulary } from "./exporter";
 
+import { SemanticIndexingStrategy } from "./model";
+
 export interface ClauSettings {
 	ignoredFolders: string;
 	privateTags: string;
@@ -17,6 +19,7 @@ export interface ClauSettings {
 	maxVocabSize: number;
 	lastRebuildIndexTime: number | null;
 	lastExportVocabularyTime: number | null;
+	semanticIndexingStrategy: SemanticIndexingStrategy;
 	// New UMAP settings for visualization
 	umapNNeighbors: number;
 	umapMinDist: number;
@@ -36,6 +39,7 @@ export const DEFAULT_SETTINGS: ClauSettings = {
 	maxVocabSize: 100000,
 	lastRebuildIndexTime: null,
 	lastExportVocabularyTime: null,
+	semanticIndexingStrategy: SemanticIndexingStrategy.Average,
 	// New UMAP defaults
 	umapNNeighbors: 15,
 	umapMinDist: 0.03,
@@ -133,11 +137,28 @@ export class ClauSettingTab extends PluginSettingTab {
 						this.display();
 					}),
 			);
+
 		const semanticSettingsEl = containerEl.createDiv();
 		if (!this.plugin.settings.enableSemanticSearch) {
 			semanticSettingsEl.style.opacity = "0.5";
 			semanticSettingsEl.style.pointerEvents = "none";
 		}
+
+		new Setting(semanticSettingsEl)
+			.setName("Indexing Strategy")
+			.setDesc("The method used to create document vectors for semantic search.")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(SemanticIndexingStrategy.Average, "Average")
+					.addOption(SemanticIndexingStrategy.TFIDF, "TF-IDF")
+					.addOption(SemanticIndexingStrategy.SIF, "SIF")
+					.setValue(this.plugin.settings.semanticIndexingStrategy)
+					.onChange(async (value: SemanticIndexingStrategy) => {
+						this.plugin.settings.semanticIndexingStrategy = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
 		semanticSettingsEl.createEl("h3", { text: "Desktop / Full Model" });
 		new Setting(semanticSettingsEl)
 			.setName("GloVe path format")
