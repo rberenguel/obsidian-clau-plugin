@@ -71,7 +71,7 @@ function findBestMatchingWord(
 	queryWords: string[],
 	vectors: WordVectorMap,
 ): string | undefined {
-	const chunkWords = chunkText.toLowerCase().match(/\b\w+\b/g) || [];
+	const chunkWords = (chunkText.toLowerCase().match(/\b\w+\b/g) || []).filter(word => !STOPWORDS.has(word));
 	if (chunkWords.length === 0) return undefined;
 
 	const queryVectors = queryWords
@@ -102,14 +102,21 @@ export const searchIndex = (
 	index: IndexedItem[],
 	vectors: WordVectorMap,
 	topK = 10,
+    principalComponent: number[] | null,
 ): SearchResult[] => {
 	if (!index || index.length === 0 || !query) return [];
 
-	const queryEmbedding = getDocumentVector(query, vectors);
+	let queryEmbedding = getDocumentVector(query, vectors);
 	if (!queryEmbedding) return [];
 
-    console.log(`Query: "${query}"`);
-    console.log("Query Vector (first 5 dims):", queryEmbedding.slice(0, 5));
+    if (principalComponent) {
+        let dotProduct = 0;
+        for (let j = 0; j < queryEmbedding.length; j++) {
+            dotProduct += queryEmbedding[j] * principalComponent[j];
+        }
+        const projected = principalComponent.map((val) => val * dotProduct);
+        queryEmbedding = queryEmbedding.map((val, j) => val - projected[j]);
+    }
 
 	const results: SearchResult[] = [];
 	for (const item of index) {
@@ -119,13 +126,6 @@ export const searchIndex = (
 
 	results.sort((a, b) => b.score - a.score);
 	const topResults = results.slice(0, topK);
-
-    console.log("--- Top 5 Search Results ---");
-    topResults.slice(0, 5).forEach(result => {
-        console.log(`File: ${result.file}, Score: ${result.score.toFixed(4)}`);
-        console.log("Doc Vector (first 5 dims):", result.embedding.slice(0, 5));
-    });
-
 
 	const queryWords = query.toLowerCase().match(/\b\w+\b/g) || [];
 	for (const result of topResults) {

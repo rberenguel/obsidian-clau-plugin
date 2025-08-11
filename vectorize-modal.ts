@@ -91,6 +91,7 @@ export class VectorizeModal extends Modal {
         const dimension = knownVectors[0].vec.length;
         const sumVector = new Array(dimension).fill(0);
         const smoothing = 1e-3; // Standard SIF smoothing parameter
+        let totalWeight = 0;
 
         for (const { word, vec } of knownVectors) {
             const prob = wordProbs.get(word) || 0;
@@ -98,9 +99,15 @@ export class VectorizeModal extends Modal {
             for (let i = 0; i < dimension; i++) {
                 sumVector[i] += vec[i] * weight;
             }
+            totalWeight += weight;
         }
 
-        const newVector = sumVector.map((val) => val / knownVectors.length);
+        if (totalWeight === 0) {
+            new Notice("Could not generate vector due to zero weight.");
+            return;
+        }
+
+        const newVector = sumVector.map((val) => val / totalWeight);
         // --- End SIF Calculation ---
 
         await semanticSearchProvider.saveCustomVector(this.word, newVector);

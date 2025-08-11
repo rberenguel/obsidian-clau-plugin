@@ -92,6 +92,7 @@ function getSifVector(
 
 	const dimension = knownVectors[0].vec.length;
 	const sumVector = new Array(dimension).fill(0);
+    let totalWeight = 0;
 
 	for (const { word, vec } of knownVectors) {
 		const prob = wordProbs.get(word) || 0;
@@ -99,9 +100,11 @@ function getSifVector(
 		for (let i = 0; i < dimension; i++) {
 			sumVector[i] += vec[i] * weight;
 		}
+        totalWeight += weight;
 	}
 
-	return sumVector.map((val) => val / knownVectors.length);
+    if (totalWeight === 0) return null;
+	return sumVector.map((val) => val / totalWeight);
 }
 
 // --- Chunking ---
@@ -121,7 +124,7 @@ export const buildIndex = async (
 	app: App,
 	vectors: WordVectorMap,
 	strategy: SemanticIndexingStrategy,
-): Promise<IndexedItem[]> => {
+): Promise<{ index: IndexedItem[]; principalComponent: number[] | null }> => {
 	const index: IndexedItem[] = [];
 	const files = app.vault.getMarkdownFiles();
 	const documents: { file: string; content: string; words: string[] }[] = [];
@@ -201,9 +204,10 @@ export const buildIndex = async (
 	}
 
 	// --- Post-processing for SIF ---
+    let principalComponent: number[] | null = null;
 	if (strategy === SemanticIndexingStrategy.SIF && chunkEmbeddings.length > 0) {
 		const pca = new PCA(chunkEmbeddings);
-		const principalComponent = pca.getEigenvectors().getColumn(0);
+		principalComponent = pca.getEigenvectors().getColumn(0);
 
 		for (let i = 0; i < chunkEmbeddings.length; i++) {
 			const embedding = chunkEmbeddings[i];
@@ -225,5 +229,5 @@ export const buildIndex = async (
 		});
 	}
 
-	return index;
+	return { index, principalComponent };
 };
