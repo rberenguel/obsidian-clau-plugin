@@ -17,6 +17,7 @@ export class ClauModal extends SuggestModal<SearchResult> {
 	constructor(
 		app: App,
 		searchProvider: ISearchProvider,
+		private recentFilesSearchProvider: ISearchProvider, // Added new parameter
 		plugin: ClauPlugin,
 		placeholder: string,
 		settings: ClauSettings,
@@ -47,6 +48,13 @@ export class ClauModal extends SuggestModal<SearchResult> {
 			if (this.isPrivateSearch || this.ignorePrivacy) {
 				this.query = query.substring(1);
 			}
+
+			// If the query is empty, use the recent files provider
+			if (this.query === "") {
+				const results = await this.recentFilesSearchProvider.search(this.query);
+				return results;
+			}
+
 			const results = await this.searchProvider.search(this.query);
 			return results;
 		} finally {

@@ -10,6 +10,7 @@ import { getDocumentVector } from "./searcher";
 import { ClauSettings, DEFAULT_SETTINGS, ClauSettingTab } from "./settings";
 import { VAULT_VIZ_VIEW_TYPE, VaultVizView } from "./vault-viz-view";
 import { ClauModal } from "./search-modal";
+import { RecentFilesSearchProvider } from "./recent-files-provider";
 import { VectorizeModal } from "./vectorize-modal";
 import { HeadingFilterManager } from "./heading-filter";
 
@@ -18,6 +19,7 @@ export default class ClauPlugin extends Plugin {
 	titleContainsSearchProvider: TitleContainsSearchProvider;
 	semanticSearchProvider: SemanticSearchProvider;
 	combinedSearchProvider: CombinedSearchProvider;
+	recentFilesSearchProvider: RecentFilesSearchProvider; // Added property
 	headingFilterManager: HeadingFilterManager;
 	settings: ClauSettings;
 	reindexIntervalId: number | null = null;
@@ -48,6 +50,7 @@ export default class ClauPlugin extends Plugin {
 			this.titleContainsSearchProvider,
 			this.semanticSearchProvider,
 		);
+		this.recentFilesSearchProvider = new RecentFilesSearchProvider(this.app); // Instantiated
 
 		await this.miniSearchProvider.build();
 		this.setupReindexInterval();
@@ -64,6 +67,7 @@ export default class ClauPlugin extends Plugin {
 				new ClauModal(
 					this.app,
 					this.combinedSearchProvider,
+					this.recentFilesSearchProvider, // Passed new provider
 					this,
 					"search? also: , for semantic, ? for private, ! to ignore privacy, space for title, . for fuzzy, -term, -/path",
 					this.settings,
