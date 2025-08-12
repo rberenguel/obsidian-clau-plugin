@@ -145,7 +145,8 @@ export default class ClauPlugin extends Plugin {
 	}
 
 	async ensureVizData(): Promise<boolean> {
-		const dataPath = `clau-viz/visualization-data.json`;
+		const dirPath = `clau-viz`;
+		const dataPath = `${dirPath}/visualization-data.json`;
 		if (await this.app.vault.adapter.exists(normalizePath(dataPath)))
 			return true;
 
@@ -168,6 +169,11 @@ export default class ClauPlugin extends Plugin {
 					embedding,
 				});
 		}
+
+		if (!(await this.app.vault.adapter.exists(normalizePath(dirPath)))) {
+			await this.app.vault.adapter.mkdir(normalizePath(dirPath));
+		}
+
 		await this.app.vault.adapter.write(
 			normalizePath(dataPath),
 			JSON.stringify(exportData),
