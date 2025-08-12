@@ -176,21 +176,17 @@ export class SemanticSearchProvider implements ISearchProvider {
 	async saveCustomVector(word: string, rawVector: number[]) {
 		let finalVector = rawVector;
 		if (this.settings.semanticIndexingStrategy === "SIF") {
-			if (!this.sifPrincipalComponent) {
-				new Notice(
-					"SIF principal component not available. Please re-build the index first.",
+			if (this.sifPrincipalComponent) {
+				// Apply the PCA correction
+				let dotProduct = 0;
+				for (let j = 0; j < finalVector.length; j++) {
+					dotProduct += finalVector[j] * this.sifPrincipalComponent[j];
+				}
+				const projected = this.sifPrincipalComponent.map(
+					(val) => val * dotProduct,
 				);
-				return;
+				finalVector = finalVector.map((val, j) => val - projected[j]);
 			}
-			// Apply the PCA correction
-			let dotProduct = 0;
-			for (let j = 0; j < finalVector.length; j++) {
-				dotProduct += finalVector[j] * this.sifPrincipalComponent[j];
-			}
-			const projected = this.sifPrincipalComponent.map(
-				(val) => val * dotProduct,
-			);
-			finalVector = finalVector.map((val, j) => val - projected[j]);
 		}
 
 		let customVectors: CustomVector[] = [];
