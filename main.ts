@@ -11,12 +11,14 @@ import { ClauSettings, DEFAULT_SETTINGS, ClauSettingTab } from "./settings";
 import { VAULT_VIZ_VIEW_TYPE, VaultVizView } from "./vault-viz-view";
 import { ClauModal } from "./search-modal";
 import { VectorizeModal } from "./vectorize-modal";
+import { HeadingFilterManager } from "./heading-filter";
 
 export default class ClauPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
 	titleContainsSearchProvider: TitleContainsSearchProvider;
 	semanticSearchProvider: SemanticSearchProvider;
 	combinedSearchProvider: CombinedSearchProvider;
+	headingFilterManager: HeadingFilterManager;
 	settings: ClauSettings;
 	reindexIntervalId: number | null = null;
 	selectionMap: Map<string, SearchResult> = new Map();
@@ -25,6 +27,10 @@ export default class ClauPlugin extends Plugin {
 	async onload() {
 		this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
 		await this.loadSettings();
+
+		this.headingFilterManager = new HeadingFilterManager(this.app);
+
+		this.registerEditorExtension(HeadingFilterManager.pluginSpec);
 
 		this.miniSearchProvider = new MiniSearchProvider(
 			this.app,

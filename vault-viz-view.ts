@@ -203,10 +203,10 @@ export class VaultVizView extends ItemView {
 
 			// Pass the UMAP settings to the visualization script
 			const vizSettings = {
-    umapNNeighbors: this.plugin.settings.umapNNeighbors,
-    umapMinDist: this.plugin.settings.umapMinDist,
-    umapSpread: this.plugin.settings.umapSpread, // Add this line
-};
+				umapNNeighbors: this.plugin.settings.umapNNeighbors,
+				umapMinDist: this.plugin.settings.umapMinDist,
+				umapSpread: this.plugin.settings.umapSpread, // Add this line
+			};
 
 			const vizApp = await (window as any).renderClauVisualization(
 				container,

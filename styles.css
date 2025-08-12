@@ -166,3 +166,21 @@ mark.clau-suggestion-highlight {
 	padding: 0.5em;
 	color: var(--red) !important;
 }
+
+.clau-heading-filter-status {
+	position: fixed;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: var(--background-primary-alt);
+	color: var(--text-normal);
+	padding: 8px 16px;
+	border-radius: 6px;
+	font-size: 0.9em;
+	z-index: 1000;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.clau-hidden {
+	display: none !important;
+}

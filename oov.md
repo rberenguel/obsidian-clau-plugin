@@ -24,11 +24,11 @@ A new interface, `CustomVector`, will be defined to structure the custom vector 
 ```typescript
 // In model.ts
 export interface CustomVector {
-    word: string;
-    vector: number[];
-    createdAt: string; // ISO 8601 timestamp
-    baseModel: string; // The path format of the GloVe model used
-    dimension: number;
+	word: string;
+	vector: number[];
+	createdAt: string; // ISO 8601 timestamp
+	baseModel: string; // The path format of the GloVe model used
+	dimension: number;
 }
 ```
 
@@ -51,24 +51,24 @@ The custom vectors will be stored in an array within `custom-vectors.json`:
 
 ### 4.1. New Command (`main.ts`)
 
--   A new command `vectorize-selected-word` will be added.
--   It will check for an active editor and a text selection. If not present, it will show a notice and abort.
--   It will instantiate and open a new `VectorizeModal`.
+- A new command `vectorize-selected-word` will be added.
+- It will check for an active editor and a text selection. If not present, it will show a notice and abort.
+- It will instantiate and open a new `VectorizeModal`.
 
 ### 4.2. Vectorize Modal (`vectorize-modal.ts`)
 
--   A new file `vectorize-modal.ts` will be created.
--   The class `VectorizeModal` will extend `Modal`.
--   The UI will consist of:
-    -   A title showing the target word.
-    -   A large `<textarea>` for pasting the corpus.
-    -   A "Generate Vector" button.
-    -   A "Cancel" button.
+- A new file `vectorize-modal.ts` will be created.
+- The class `VectorizeModal` will extend `Modal`.
+- The UI will consist of:
+    - A title showing the target word.
+    - A large `<textarea>` for pasting the corpus.
+    - A "Generate Vector" button.
+    - A "Cancel" button.
 
 ### 4.3. Vector Calculation Logic
 
--   This logic will reside within the `VectorizeModal`.
--   On submission, it will:
+- This logic will reside within the `VectorizeModal`.
+- On submission, it will:
     1.  Retrieve the pasted text.
     2.  Tokenize the text, convert to lowercase, and filter out stopwords and the target OOV word.
     3.  Fetch the currently loaded `WordVectorMap` from the `SemanticSearchProvider`.
@@ -77,8 +77,8 @@ The custom vectors will be stored in an array within `custom-vectors.json`:
 
 ### 4.4. Storage (`semantic-search-provider.ts`)
 
--   A new method, `saveCustomVector(word: string, vector: number[])`, will be added to `SemanticSearchProvider`.
--   This method will:
+- A new method, `saveCustomVector(word: string, vector: number[])`, will be added to `SemanticSearchProvider`.
+- This method will:
     1.  Define the path: `CUSTOM_VECTORS_PATH = ".obsidian/plugins/clau/custom-vectors.json"`.
     2.  Read the existing `custom-vectors.json` file, or create an empty array if it doesn't exist.
     3.  Construct the `CustomVector` object with the word, vector, and metadata (timestamp, `glovePathFormat`, dimension).
@@ -88,23 +88,23 @@ The custom vectors will be stored in an array within `custom-vectors.json`:
 
 ### 4.5. Loading & Validation (`semantic-search-provider.ts`)
 
--   The `loadVectorModel` method in `SemanticSearchProvider` will be updated.
--   After loading the main GloVe vectors, it will:
+- The `loadVectorModel` method in `SemanticSearchProvider` will be updated.
+- After loading the main GloVe vectors, it will:
     1.  Check for the existence of `custom-vectors.json`.
     2.  If it exists, read and parse the file.
     3.  Iterate through each `CustomVector` object in the array.
     4.  **Validate** each custom vector:
-        -   `customVector.baseModel === this.settings.glovePathFormat`
-        -   `customVector.dimension === dimension_of_loaded_glove_model`
+        - `customVector.baseModel === this.settings.glovePathFormat`
+        - `customVector.dimension === dimension_of_loaded_glove_model`
     5.  If validation passes, add the vector to the `this.vectors` map.
     6.  If validation fails, show a `Notice` (e.g., "Skipped loading custom vector for 'MLCR' due to model mismatch.") and log the details to the console.
 
 ## 5. Potential Issues & Mitigations
 
--   **No Selection:** The command will check for a selection and show a notice if one isn't made.
--   **Empty Corpus:** The calculation logic will handle cases where the pasted text is empty or contains no known words, preventing errors and notifying the user.
--   **Calculation Time:** For very large text inputs, the UI might freeze. While this is a client-side operation and should be reasonably fast, we will not add a loading indicator in the first version to keep complexity down.
--   **File I/O Errors:** All file read/write operations will be wrapped in `try...catch` blocks to handle potential errors gracefully.
--   **Model Not Loaded:** The "Vectorize" command will be disabled or show a notice if the base semantic model is not loaded yet.
+- **No Selection:** The command will check for a selection and show a notice if one isn't made.
+- **Empty Corpus:** The calculation logic will handle cases where the pasted text is empty or contains no known words, preventing errors and notifying the user.
+- **Calculation Time:** For very large text inputs, the UI might freeze. While this is a client-side operation and should be reasonably fast, we will not add a loading indicator in the first version to keep complexity down.
+- **File I/O Errors:** All file read/write operations will be wrapped in `try...catch` blocks to handle potential errors gracefully.
+- **Model Not Loaded:** The "Vectorize" command will be disabled or show a notice if the base semantic model is not loaded yet.
 
 This plan provides a comprehensive roadmap for implementing the feature.

@@ -2,19 +2,19 @@
 import { App, TFile, Notice, normalizePath } from "obsidian";
 
 export enum SemanticIndexingStrategy {
-    Average = "Average",
-    TFIDF = "TF-IDF",
-    SIF = "SIF",
+	Average = "Average",
+	TFIDF = "TF-IDF",
+	SIF = "SIF",
 }
 
 export type WordVectorMap = Map<string, number[]>;
 
 export interface CustomVector {
-    word: string;
-    vector: number[];
-    createdAt: string; // ISO 8601 timestamp
-    baseModel: string; // The path format of the GloVe model used
-    dimension: number;
+	word: string;
+	vector: number[];
+	createdAt: string; // ISO 8601 timestamp
+	baseModel: string; // The path format of the GloVe model used
+	dimension: number;
 }
 
 export class EmbeddingModel {
@@ -69,5 +69,3 @@ export class EmbeddingModel {
 		return vectors;
 	}
 }
-
-

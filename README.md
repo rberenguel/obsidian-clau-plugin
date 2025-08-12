@@ -10,6 +10,7 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
 - **Multiple Search Providers:** Choose between a fast, in-memory MiniSearch index or Obsidian's native search engine.
 - **Real-time Indexing:** Automatically updates the search index when notes are created, modified, or deleted.
 - **Semantic Search:** Understands the meaning of your query to find relevant notes, even if exact keywords aren't present.
+- **Live Heading Filter:** Instantly filter the active note to show only matching headings and their content.
 
 ### Some screenshots
 
@@ -33,7 +34,7 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
     - **Term Exclusion (`-`):** Add a hyphen before a word to exclude notes containing it. Does not combine with semantic search.
     - **Path Exclusion (`-/`):** Add `-/` before a path to exclude notes from that folder. Does not combine with semantic search (yet).
     - **Modifiers can be combined:** For example, `! . project spec -wip` will perform a fuzzy, title-only search for "project spec" while ignoring privacy and excluding notes with "wip". Note that order is important for most of these, and semantic search does not work yet with all of them.
-    - **Semantic Search Integration:** When enabled in settings, semantic search automatically enhances your search results by finding notes conceptually similar to your query, even if they don't contain the exact words. You can enable or disable this feature and configure its models in the plugin settings under "Semantic Search".
+    - **Filter by Heading (`#`):** Start your query with a single hash (`#`) to enter a special filtering mode for the currently active note. This will immediately close the search modal. As you continue to type, the note's content will be filtered in real-time to show only headings that match your query, their sub-headings, and their content. Parent headings are kept visible to maintain context. Press `Escape` to exit the filter mode and restore the full view. _This is a standalone mode and does not combine with other modifiers._
 3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette. Index is rebuilt automatically periodically.
 
 ### Copy Content from Multiple Files

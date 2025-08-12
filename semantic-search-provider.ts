@@ -100,8 +100,7 @@ export class SemanticSearchProvider implements ISearchProvider {
 	async loadVectorModel(): Promise<WordVectorMap | null> {
 		const { glovePathFormat, gloveFileCount, prunedGlovePath } =
 			this.settings;
-		const isMobile =
-			Math.min(window.innerWidth, window.innerHeight) < 768;
+		const isMobile = Math.min(window.innerWidth, window.innerHeight) < 768;
 		let pathsToLoad: string[] = [];
 		let modelIdentifier = "";
 
@@ -141,9 +140,7 @@ export class SemanticSearchProvider implements ISearchProvider {
 		}
 
 		try {
-			const data = await this.app.vault.adapter.read(
-				CUSTOM_VECTORS_PATH,
-			);
+			const data = await this.app.vault.adapter.read(CUSTOM_VECTORS_PATH);
 			const customVectors: CustomVector[] = JSON.parse(data);
 			const firstVector = this.vectors.values().next().value;
 			if (!firstVector) return;
@@ -180,7 +177,8 @@ export class SemanticSearchProvider implements ISearchProvider {
 				// Apply the PCA correction
 				let dotProduct = 0;
 				for (let j = 0; j < finalVector.length; j++) {
-					dotProduct += finalVector[j] * this.sifPrincipalComponent[j];
+					dotProduct +=
+						finalVector[j] * this.sifPrincipalComponent[j];
 				}
 				const projected = this.sifPrincipalComponent.map(
 					(val) => val * dotProduct,
@@ -192,9 +190,8 @@ export class SemanticSearchProvider implements ISearchProvider {
 		let customVectors: CustomVector[] = [];
 		if (await this.app.vault.adapter.exists(CUSTOM_VECTORS_PATH)) {
 			try {
-				const data = await this.app.vault.adapter.read(
-					CUSTOM_VECTORS_PATH,
-				);
+				const data =
+					await this.app.vault.adapter.read(CUSTOM_VECTORS_PATH);
 				customVectors = JSON.parse(data);
 			} catch (e) {
 				console.error("Failed to read custom vectors file:", e);

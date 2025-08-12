@@ -3,11 +3,12 @@ import { App, MarkdownRenderer, Plugin, SuggestModal, TFile } from "obsidian";
 import { SearchResult } from "./search";
 import { ISearchProvider } from "./search-provider";
 import { ClauSettings } from "./settings";
+import ClauPlugin from "./main";
 
 export class ClauModal extends SuggestModal<SearchResult> {
 	private searchProvider: ISearchProvider;
 	private query: string = "";
-	private plugin: Plugin;
+	private plugin: ClauPlugin;
 	private settings: ClauSettings;
 	private isPrivateSearch: boolean = false;
 	private ignorePrivacy: boolean = false;
@@ -16,7 +17,7 @@ export class ClauModal extends SuggestModal<SearchResult> {
 	constructor(
 		app: App,
 		searchProvider: ISearchProvider,
-		plugin: Plugin,
+		plugin: ClauPlugin,
 		placeholder: string,
 		settings: ClauSettings,
 	) {
@@ -28,6 +29,12 @@ export class ClauModal extends SuggestModal<SearchResult> {
 	}
 
 	async getSuggestions(query: string): Promise<SearchResult[]> {
+		if (query === "#") {
+			this.plugin.headingFilterManager.activate();
+			this.close();
+			return [];
+		}
+
 		if (this.isLoading) {
 			return [];
 		}

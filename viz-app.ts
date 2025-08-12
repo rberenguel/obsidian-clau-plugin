@@ -33,7 +33,7 @@ function valueToHexColor(value: number, min: number, max: number): number {
 			nComponents: 2,
 			nNeighbors: vizSettings?.umapNNeighbors || 15,
 			minDist: vizSettings?.umapMinDist || 0.03,
-            spread: vizSettings?.umapSpread || 1
+			spread: vizSettings?.umapSpread || 1,
 		});
 		const embeddings = pointsData.map((p: any) => p.embedding);
 		const projection = await umap.fitAsync(embeddings);

@@ -5,26 +5,180 @@ import { PCA } from "ml-pca";
 
 // A common list of English stopwords
 const STOPWORDS = new Set([
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
-    "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
-    "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't",
-    "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
-    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't",
-    "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
-    "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i",
-    "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's",
-    "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself",
-    "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
-    "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
-    "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such",
-    "than", "that", "that's", "the", "their", "theirs", "them", "themselves",
-    "then", "there", "there's", "these", "they", "they'd", "they'll", "they're",
-    "they've", "this", "those", "through", "to", "too", "under", "until", "up",
-    "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were",
-    "weren't", "what", "what's", "when", "when's", "where", "where's", "which",
-    "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
-    "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours",
-    "yourself", "yourselves"
+	"a",
+	"about",
+	"above",
+	"after",
+	"again",
+	"against",
+	"all",
+	"am",
+	"an",
+	"and",
+	"any",
+	"are",
+	"aren't",
+	"as",
+	"at",
+	"be",
+	"because",
+	"been",
+	"before",
+	"being",
+	"below",
+	"between",
+	"both",
+	"but",
+	"by",
+	"can't",
+	"cannot",
+	"could",
+	"couldn't",
+	"did",
+	"didn't",
+	"do",
+	"does",
+	"doesn't",
+	"doing",
+	"don't",
+	"down",
+	"during",
+	"each",
+	"few",
+	"for",
+	"from",
+	"further",
+	"had",
+	"hadn't",
+	"has",
+	"hasn't",
+	"have",
+	"haven't",
+	"having",
+	"he",
+	"he'd",
+	"he'll",
+	"he's",
+	"her",
+	"here",
+	"here's",
+	"hers",
+	"herself",
+	"him",
+	"himself",
+	"his",
+	"how",
+	"how's",
+	"i",
+	"i'd",
+	"i'll",
+	"i'm",
+	"i've",
+	"if",
+	"in",
+	"into",
+	"is",
+	"isn't",
+	"it",
+	"it's",
+	"its",
+	"itself",
+	"let's",
+	"me",
+	"more",
+	"most",
+	"mustn't",
+	"my",
+	"myself",
+	"no",
+	"nor",
+	"not",
+	"of",
+	"off",
+	"on",
+	"once",
+	"only",
+	"or",
+	"other",
+	"ought",
+	"our",
+	"ours",
+	"ourselves",
+	"out",
+	"over",
+	"own",
+	"same",
+	"shan't",
+	"she",
+	"she'd",
+	"she'll",
+	"she's",
+	"should",
+	"shouldn't",
+	"so",
+	"some",
+	"such",
+	"than",
+	"that",
+	"that's",
+	"the",
+	"their",
+	"theirs",
+	"them",
+	"themselves",
+	"then",
+	"there",
+	"there's",
+	"these",
+	"they",
+	"they'd",
+	"they'll",
+	"they're",
+	"they've",
+	"this",
+	"those",
+	"through",
+	"to",
+	"too",
+	"under",
+	"until",
+	"up",
+	"very",
+	"was",
+	"wasn't",
+	"we",
+	"we'd",
+	"we'll",
+	"we're",
+	"we've",
+	"were",
+	"weren't",
+	"what",
+	"what's",
+	"when",
+	"when's",
+	"where",
+	"where's",
+	"which",
+	"while",
+	"who",
+	"who's",
+	"whom",
+	"why",
+	"why's",
+	"with",
+	"won't",
+	"would",
+	"wouldn't",
+	"you",
+	"you'd",
+	"you'll",
+	"you're",
+	"you've",
+	"your",
+	"yours",
+	"yourself",
+	"yourselves",
 ]);
 
 // --- Vector Calculation ---
@@ -92,7 +246,7 @@ function getSifVector(
 
 	const dimension = knownVectors[0].vec.length;
 	const sumVector = new Array(dimension).fill(0);
-    let totalWeight = 0;
+	let totalWeight = 0;
 
 	for (const { word, vec } of knownVectors) {
 		const prob = wordProbs.get(word) || 0;
@@ -100,10 +254,10 @@ function getSifVector(
 		for (let i = 0; i < dimension; i++) {
 			sumVector[i] += vec[i] * weight;
 		}
-        totalWeight += weight;
+		totalWeight += weight;
 	}
 
-    if (totalWeight === 0) return null;
+	if (totalWeight === 0) return null;
 	return sumVector.map((val) => val / totalWeight);
 }
 
@@ -132,7 +286,9 @@ export const buildIndex = async (
 	// First pass: collect all documents and words
 	for (const file of files) {
 		const content = await app.vault.cachedRead(file);
-		const words = (content.toLowerCase().match(/\b\w+\b/g) || []).filter(word => !STOPWORDS.has(word));
+		const words = (content.toLowerCase().match(/\b\w+\b/g) || []).filter(
+			(word) => !STOPWORDS.has(word),
+		);
 		documents.push({ file: file.path, content, words });
 	}
 
@@ -173,7 +329,9 @@ export const buildIndex = async (
 	for (const doc of documents) {
 		const chunks = chunkText(doc.content);
 		for (const chunk of chunks) {
-			const chunkWords = (chunk.toLowerCase().match(/\b\w+\b/g) || []).filter(word => !STOPWORDS.has(word));
+			const chunkWords = (
+				chunk.toLowerCase().match(/\b\w+\b/g) || []
+			).filter((word) => !STOPWORDS.has(word));
 			let embedding: number[] | null = null;
 
 			switch (strategy) {
@@ -187,12 +345,24 @@ export const buildIndex = async (
 					}
 					const tfIdfScores = new Map<string, number>();
 					for (const [word, count] of tf.entries()) {
-						tfIdfScores.set(word, (count / chunkWords.length) * (idf.get(word) || 0));
+						tfIdfScores.set(
+							word,
+							(count / chunkWords.length) * (idf.get(word) || 0),
+						);
 					}
-					embedding = getTfIdfVector(chunkWords, vectors, tfIdfScores);
+					embedding = getTfIdfVector(
+						chunkWords,
+						vectors,
+						tfIdfScores,
+					);
 					break;
 				case SemanticIndexingStrategy.SIF:
-					embedding = getSifVector(chunkWords, vectors, wordProbs, 1e-3);
+					embedding = getSifVector(
+						chunkWords,
+						vectors,
+						wordProbs,
+						1e-3,
+					);
 					break;
 			}
 
@@ -204,8 +374,11 @@ export const buildIndex = async (
 	}
 
 	// --- Post-processing for SIF ---
-    let principalComponent: number[] | null = null;
-	if (strategy === SemanticIndexingStrategy.SIF && chunkEmbeddings.length > 0) {
+	let principalComponent: number[] | null = null;
+	if (
+		strategy === SemanticIndexingStrategy.SIF &&
+		chunkEmbeddings.length > 0
+	) {
 		const pca = new PCA(chunkEmbeddings);
 		principalComponent = pca.getEigenvectors().getColumn(0);
 
