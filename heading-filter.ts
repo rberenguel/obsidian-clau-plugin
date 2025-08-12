@@ -13,6 +13,8 @@ import { Extension } from "@codemirror/state";
 
 const HIDDEN_CLASS = "clau-hidden";
 
+type HeadingInfo = { pos: number; level: number; text: string };
+
 // The plugin now contains all state and logic.
 export class HeadingFilterViewPlugin implements PluginValue {
 	decorations: DecorationSet;
@@ -100,7 +102,7 @@ export class HeadingFilterViewPlugin implements PluginValue {
 		const builder = new RangeSetBuilder<Decoration>();
 		const query = this.searchBuffer.toLowerCase();
 
-		type HeadingInfo = { pos: number; level: number; text: string };
+		
 		const headings: HeadingInfo[] = [];
 		const headingsByPos = new Map<number, HeadingInfo>();
 
