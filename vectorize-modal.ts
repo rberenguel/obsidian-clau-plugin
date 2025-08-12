@@ -91,9 +91,26 @@ export class VectorizeModal extends Modal {
 			}
 		}
 
-		const newVector = sumVector.map((val) => val / knownVectors.length);
+		const contextVector = sumVector.map((val) => val / knownVectors.length);
 
-		await semanticSearchProvider.saveCustomVector(this.word, newVector);
+		const existingVector = vectors.get(lowerCaseWord);
+		let finalVector = contextVector;
+
+		if (existingVector) {
+			// Average the new context vector with the existing vector
+			finalVector = new Array(dimension).fill(0);
+			for (let i = 0; i < dimension; i++) {
+				finalVector[i] = (contextVector[i] + existingVector[i]) / 2;
+			}
+			new Notice(
+				`"${this.word}" already exists. Averaging with new context.`,
+			);
+		}
+
+		await semanticSearchProvider.saveCustomVector(
+			this.word,
+			finalVector,
+		);
 	}
 
 	onClose() {
