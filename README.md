@@ -10,6 +10,7 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
 - **Multiple Search Providers:** Choose between a fast, in-memory MiniSearch index or Obsidian's native search engine.
 - **Real-time Indexing:** Automatically updates the search index when notes are created, modified, or deleted.
 - **Semantic Search:** Understands the meaning of your query to find relevant notes, even if exact keywords aren't present.
+    - Manual handling of out-of-vocabulary terms: you can add new terms by averaging close terms by vectorizing unknown words (like `asyncio`) or revectorizing known words (like `spark`)
 - **Live Heading Filter:** Instantly filter the active note to show only matching headings and their content.
 
 ### Some screenshots
@@ -36,6 +37,16 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
     - **Modifiers can be combined:** For example, `! . project spec -wip` will perform a fuzzy, title-only search for "project spec" while ignoring privacy and excluding notes with "wip". Note that order is important for most of these, and semantic search does not work yet with all of them.
     - **Filter by Heading (`#`):** Start your query with a single hash (`#`) to enter a special filtering mode for the currently active note. This will immediately close the search modal. As you continue to type, the note's content will be filtered in real-time to show only headings that match your query, their sub-headings, and their content. Parent headings are kept visible to maintain context. Press `Escape` to exit the filter mode and restore the full view. _This is a standalone mode and does not combine with other modifiers._
 3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette. Index is rebuilt automatically periodically.
+
+To vectorize an unknown word, select the word and invoke the _Vectorize_ command. You will get a modal text entry where you can add your words. You can find these with a prompt like the following:
+
+
+> Generate a weighted list of keywords representing the core concepts of the technology specified below.
+> Weight the list by repeating keywords. The most central concepts should be repeated most frequently. Important secondary concepts should be repeated less often. Related but non-essential terms should appear only once.
+> The output must be a single line of text containing only space-separated, lowercase keywords. Do not include titles, explanations, or any other text.
+
+> The word to provide synonims for is
+
 
 ### Copy Content from Multiple Files
 
