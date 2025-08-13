@@ -20,6 +20,7 @@ export class HeadingFilterViewPlugin implements PluginValue {
 	decorations: DecorationSet;
 	isActive = false;
 	searchBuffer = "";
+	manager: HeadingFilterManager | null = null;
 
 	// A static property to hold the single instance for easy access.
 	public static instance: HeadingFilterViewPlugin | null = null;
@@ -37,6 +38,7 @@ export class HeadingFilterViewPlugin implements PluginValue {
 	}
 
 	destroy() {
+		this.manager?.deactivate();
 		HeadingFilterViewPlugin.instance = null;
 	}
 
@@ -44,14 +46,14 @@ export class HeadingFilterViewPlugin implements PluginValue {
 	activate() {
 		this.isActive = true;
 		// The keydown handler is now managed by this plugin.
-		this.view.dom.addEventListener("keydown", this.handleKeyDown, true);
+		document.body.addEventListener("keydown", this.handleKeyDown, true);
 	}
 
 	// This is called from the manager to stop the filter.
 	deactivate() {
 		this.isActive = false;
 		this.searchBuffer = "";
-		this.view.dom.removeEventListener("keydown", this.handleKeyDown, true);
+		document.body.removeEventListener("keydown", this.handleKeyDown, true);
 		// Trigger one last update to clear all decorations.
 		this.updateDecorations();
 	}
@@ -65,7 +67,7 @@ export class HeadingFilterViewPlugin implements PluginValue {
 		event.stopImmediatePropagation();
 
 		if (event.key === "Escape") {
-			this.deactivate();
+			this.manager?.deactivate();
 			return;
 		}
 
@@ -219,21 +221,50 @@ export class HeadingFilterManager {
 	constructor(private app: App) {}
 
 	public activate() {
-		// Find the running plugin instance and tell it to become active.
 		const instance = HeadingFilterViewPlugin.instance;
 		if (!instance) return;
+
+		instance.manager = this;
 
 		this.showFilterStatusBar();
 		instance.activate();
 		this.updateStatus(instance);
 
-		// The manager needs to know when the buffer changes to update the status bar
 		const originalUpdateDecorations =
 			instance.updateDecorations.bind(instance);
 		instance.updateDecorations = () => {
 			originalUpdateDecorations();
 			this.updateStatus(instance);
 		};
+
+		document.body.addEventListener("click", this.handleOutsideClick, true);
+	}
+
+	private handleOutsideClick = (event: MouseEvent): void => {
+		const target = event.target as HTMLElement;
+		if (target && target.closest(".clau-heading-filter-status")) {
+			return;
+		}
+		this.deactivate();
+	};
+
+	public deactivate() {
+		const instance = HeadingFilterViewPlugin.instance;
+		if (instance && instance.isActive) {
+			instance.deactivate();
+		}
+		if (this.statusBar) {
+			this.statusBar.remove();
+			this.statusBar = null;
+		}
+		document.body.removeEventListener(
+			"click",
+			this.handleOutsideClick,
+			true,
+		);
+		if (instance) {
+			instance.manager = null;
+		}
 	}
 
 	private updateStatus(pluginInstance: HeadingFilterViewPlugin) {
@@ -245,6 +276,7 @@ export class HeadingFilterManager {
 	}
 
 	private showFilterStatusBar() {
+		if (this.statusBar) return;
 		this.statusBar = document.body.createEl("div", {
 			cls: "clau-heading-filter-status",
 		});
