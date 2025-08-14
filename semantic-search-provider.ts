@@ -64,15 +64,34 @@ export class SemanticSearchProvider implements ISearchProvider {
 			return [];
 		}
 
+		// 1. Fetch a larger number of chunk candidates to ensure a good selection pool.
+		const CHUNK_CANDIDATE_COUNT = 100;
 		const semanticResults = searchIndex(
 			query,
 			index,
 			vectors,
-			topK,
+			CHUNK_CANDIDATE_COUNT,
 			this.sifPrincipalComponent,
 		);
 
-		return semanticResults.map((item) => {
+		// 2. De-duplicate the results to get only the highest-scoring chunk per file.
+		const topResultsByFile = new Map<string, any>();
+		for (const result of semanticResults) {
+			// The searchIndex results are sorted by score, so the first time we
+			// encounter a file path, it's guaranteed to be the highest-scoring chunk.
+			if (!topResultsByFile.has(result.file)) {
+				topResultsByFile.set(result.file, result);
+			}
+		}
+
+		// 3. Convert the map of unique files back to an array and slice to the desired count.
+		const finalResults = Array.from(topResultsByFile.values()).slice(
+			0,
+			topK,
+		);
+
+		// 4. Map the final, de-duplicated results to the display format.
+		return finalResults.map((item) => {
 			const file = this.app.vault.getAbstractFileByPath(item.file);
 			return {
 				title: file ? file.name.replace(/\.md$/, "") : item.file,
@@ -87,7 +106,135 @@ export class SemanticSearchProvider implements ISearchProvider {
 		if (this.vectors) return this.vectors;
 		return await this.loadVectorModel();
 	}
+	// In semantic-search-provider.ts, add this new method to the SemanticSearchProvider class
 
+	async generateVectorsFromFileContent(content: string) {
+		const vectors = await this.getVectors();
+		if (!vectors) {
+			new Notice("Vector model not loaded. Cannot generate vectors.");
+			return;
+		}
+
+		// 1. Parse headings and their content
+		const newWords = new Map<string, string>();
+		const headingRegex =
+			/(?:^|\n)#{1,6}\s+(.+?)\n([\s\S]*?)(?=\n#{1,6}\s+|$)/g;
+		let match;
+		while ((match = headingRegex.exec(content)) !== null) {
+			const word = match[1].trim().toLowerCase();
+			const contextText = match[2].trim();
+			if (word && contextText) {
+				newWords.set(word, contextText);
+			}
+		}
+
+		if (newWords.size === 0) {
+			new Notice(
+				"No words defined in the current file. Use headings for new words.",
+			);
+			return;
+		}
+
+		// 2. Iteratively generate vectors
+		const ITERATIONS = 5;
+		const newVectors = new Map<string, number[]>();
+		for (let i = 0; i < ITERATIONS; i++) {
+			let wordsUpdatedInPass = 0;
+			for (const [word, contextText] of newWords.entries()) {
+				const combinedVectors = new Map([...vectors, ...newVectors]);
+				const contextWords =
+					contextText.toLowerCase().match(/\b\w+\b/g) || [];
+				const knownVectors = contextWords
+					.map((w) => combinedVectors.get(w))
+					.filter((v): v is number[] => !!v);
+
+				if (knownVectors.length === 0) continue;
+
+				const dimension = knownVectors[0].length;
+				const sumVector = new Array(dimension).fill(0);
+				for (const vec of knownVectors) {
+					for (let j = 0; j < dimension; j++) {
+						sumVector[j] += vec[j];
+					}
+				}
+				const newVector = sumVector.map(
+					(val) => val / knownVectors.length,
+				);
+				newVectors.set(word, newVector);
+				wordsUpdatedInPass++;
+			}
+			if (wordsUpdatedInPass === 0 && i > 0) break;
+		}
+
+		if (newVectors.size === 0) {
+			new Notice(
+				"Could not generate any vectors. Check if context words exist in the model.",
+			);
+			return;
+		}
+
+		// 3. Batch save all generated vectors
+		let customVectors: CustomVector[] = [];
+		if (await this.app.vault.adapter.exists(CUSTOM_VECTORS_PATH)) {
+			try {
+				const data =
+					await this.app.vault.adapter.read(CUSTOM_VECTORS_PATH);
+				customVectors = JSON.parse(data);
+			} catch (e) {
+				console.error(
+					"Failed to read custom vectors file for batch update:",
+					e,
+				);
+			}
+		}
+
+		for (const [word, rawVector] of newVectors.entries()) {
+			let finalVector = rawVector;
+			if (
+				this.settings.semanticIndexingStrategy === "SIF" &&
+				this.sifPrincipalComponent
+			) {
+				let dotProduct = 0;
+				for (let j = 0; j < finalVector.length; j++) {
+					dotProduct +=
+						finalVector[j] * this.sifPrincipalComponent[j];
+				}
+				const projected = this.sifPrincipalComponent.map(
+					(val) => val * dotProduct,
+				);
+				finalVector = finalVector.map((val, j) => val - projected[j]);
+			}
+
+			const newCustomVector: CustomVector = {
+				word: word,
+				vector: finalVector,
+				createdAt: new Date().toISOString(),
+				baseModel: this.settings.glovePathFormat,
+				dimension: finalVector.length,
+			};
+
+			const existingIndex = customVectors.findIndex(
+				(v) => v.word === newCustomVector.word,
+			);
+			if (existingIndex > -1) {
+				customVectors[existingIndex] = newCustomVector;
+			} else {
+				customVectors.push(newCustomVector);
+			}
+			this.vectors?.set(newCustomVector.word, newCustomVector.vector);
+		}
+
+		await this.app.vault.adapter.write(
+			CUSTOM_VECTORS_PATH,
+			JSON.stringify(customVectors, null, 2),
+		);
+
+		// 4. Rebuild the index ONCE at the very end
+		new Notice(
+			`Successfully saved ${newVectors.size} custom vectors. Re-building index...`,
+		);
+		await this.buildIndex();
+	}
 	async getSearchIndex(): Promise<IndexedItem[] | null> {
 		if (this.index) return this.index;
 		this.index = await this.loadSearchIndexFromFile();
@@ -278,10 +425,15 @@ export class SemanticSearchProvider implements ISearchProvider {
 		new Notice(
 			`Building semantic index using ${this.settings.semanticIndexingStrategy} strategy...`,
 		);
+		const foldersToIgnore = this.settings.ignoredFolders
+			.split(",")
+			.filter((f) => f.trim());
+
 		const { index, principalComponent } = await buildSemanticIndex(
 			this.app,
 			vectors,
 			this.settings.semanticIndexingStrategy,
+			foldersToIgnore, // <-- Pass the folders to the indexer
 		);
 		this.index = index;
 		this.sifPrincipalComponent = principalComponent;

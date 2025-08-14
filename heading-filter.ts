@@ -104,7 +104,6 @@ export class HeadingFilterViewPlugin implements PluginValue {
 		const builder = new RangeSetBuilder<Decoration>();
 		const query = this.searchBuffer.toLowerCase();
 
-		
 		const headings: HeadingInfo[] = [];
 		const headingsByPos = new Map<number, HeadingInfo>();
 

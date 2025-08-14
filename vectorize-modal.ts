@@ -107,10 +107,7 @@ export class VectorizeModal extends Modal {
 			);
 		}
 
-		await semanticSearchProvider.saveCustomVector(
-			this.word,
-			finalVector,
-		);
+		await semanticSearchProvider.saveCustomVector(this.word, finalVector);
 	}
 
 	onClose() {

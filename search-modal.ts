@@ -51,7 +51,9 @@ export class ClauModal extends SuggestModal<SearchResult> {
 
 			// If the query is empty, use the recent files provider
 			if (this.query === "") {
-				const results = await this.recentFilesSearchProvider.search(this.query);
+				const results = await this.recentFilesSearchProvider.search(
+					this.query,
+				);
 				return results;
 			}
 

@@ -9,8 +9,8 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
 - **Content Context:** See a snippet of the matching content directly in the search results.
 - **Multiple Search Providers:** Choose between a fast, in-memory MiniSearch index or Obsidian's native search engine.
 - **Real-time Indexing:** Automatically updates the search index when notes are created, modified, or deleted.
-- **Semantic Search:** Understands the meaning of your query to find relevant notes, even if exact keywords aren't present.
-    - Manual handling of out-of-vocabulary terms: you can add new terms by averaging close terms by vectorizing unknown words (like `asyncio`) or revectorizing known words (like `spark`)
+- **Semantic Search:** Understands the meaning of your query to find the most relevant _files_, even if exact keywords aren't present.
+    - **Custom Vocabulary:** Easily define vectors for new terms. Create a note where headings are your new words and the text below provides context. A command then batch-processes this file to teach your vault the new vocabulary.
 - **Live Heading Filter:** Instantly filter the active note to show only matching headings and their content.
 
 ### Some screenshots
@@ -38,15 +38,40 @@ A quick switcher plugin for Obsidian with fuzzy search across all your notes.
     - **Filter by Heading (`#`):** Start your query with a single hash (`#`) to enter a special filtering mode for the currently active note. This will immediately close the search modal. As you continue to type, the note's content will be filtered in real-time to show only headings that match your query, their sub-headings, and their content. Parent headings are kept visible to maintain context. Press `Escape` to exit the filter mode and restore the full view. _This is a standalone mode and does not combine with other modifiers._
 3.  **Re-build index:** If you encounter issues with search results, you can manually rebuild the index by searching for "Clau: Re-build index" in the command palette. Index is rebuilt automatically periodically.
 
-To vectorize an unknown word, select the word and invoke the _Vectorize_ command. You will get a modal text entry where you can add your words. You can find these with a prompt like the following:
+### Defining a Custom Vocabulary
 
+You can teach Clau new, domain-specific words that don't exist in the base GloVe model using two methods. The file-based method is recommended for defining multiple terms.
+
+#### Method 1: File-Based Generation (Recommended)
+
+1.  Create a dedicated note (e.g., `my-vocabulary.md`). It's best to place this in a folder that you've configured Clau to ignore in the settings.
+2.  In this note, use Markdown headings for each new word you want to define.
+3.  Under each heading, write a space-separated list of related words that define the term's context. Repeating a word gives it more weight.
+
+    ```markdown
+    # Spark
+
+    big data distributed computing cluster rdd dataframe sql streaming mapreduce hadoop parallel processing analytics data engineering apache distributed processing
+
+    # Scala
+
+    functional programming jvm object-oriented immutable sbt akka concurrent scalable type inference functional jvm functional static types
+    ```
+
+4.  With this note as the active tab, open the command palette and run `Clau: Generate vectors from active file`.
+5.  Clau will process the entire file, generate vectors for all defined headings, and rebuild the semantic index.
+
+You can use a Large Language Model to help generate the context words with a prompt like the following:
 
 > Generate a weighted list of keywords representing the core concepts of the technology specified below.
 > Weight the list by repeating keywords. The most central concepts should be repeated most frequently. Important secondary concepts should be repeated less often. Related but non-essential terms should appear only once.
 > The output must be a single line of text containing only space-separated, lowercase keywords. Do not include titles, explanations, or any other text.
-
+>
 > The word to provide synonims for is
 
+#### Method 2: Single Word Vectorization
+
+For quick, one-off definitions, select a word in any note and invoke the `Clau: Vectorize selected word` command from the command palette. A modal will appear where you can paste a body of text to define the word's context.
 
 ### Copy Content from Multiple Files
 
@@ -81,7 +106,9 @@ Content of the second note...
 
 ## Why not use [OmniSearch](https://github.com/scambier/obsidian-omnisearch)?
 
-Tweaking your own plugin is kind of fun, also _sometimes_ I need plugins with the minimum amount of dependencies so I can confirm the code is safe. This is small enough I can check everything manually, and does _exactly_ what I want. Also, semantic search now.
+Tweaking your own plugin is kind of fun, also _sometimes_ I need plugins with the minimum amount of dependencies so I can confirm the code is safe. This is small enough I can check everything manually, and does _exactly_ what I want.
+
+I'm getting a replacement to the QuickSwitcher that works better for how I want to move across notes. Having my own plugin has let me create the headings filter (which is a feature I find handy), as well as having a pretty fast and effective (extensible) semantic search.
 
 ## Semantic Search Setup
 

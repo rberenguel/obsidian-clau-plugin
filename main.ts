@@ -50,7 +50,9 @@ export default class ClauPlugin extends Plugin {
 			this.titleContainsSearchProvider,
 			this.semanticSearchProvider,
 		);
-		this.recentFilesSearchProvider = new RecentFilesSearchProvider(this.app); // Instantiated
+		this.recentFilesSearchProvider = new RecentFilesSearchProvider(
+			this.app,
+		); // Instantiated
 
 		await this.miniSearchProvider.build();
 		this.setupReindexInterval();
@@ -126,6 +128,22 @@ export default class ClauPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "generate-vectors-from-file",
+			name: "Generate vectors from active file",
+			editorCallback: async (editor: Editor) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!file) {
+					new Notice("No active file selected.");
+					return;
+				}
+				new Notice(`Generating vectors from ${file.basename}...`);
+				const content = await this.app.vault.read(file);
+				await this.semanticSearchProvider.generateVectorsFromFileContent(
+					content,
+				);
+			},
+		});
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
 				if (file instanceof TFile)

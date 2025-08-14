@@ -278,9 +278,17 @@ export const buildIndex = async (
 	app: App,
 	vectors: WordVectorMap,
 	strategy: SemanticIndexingStrategy,
+	foldersToIgnore: string[],
 ): Promise<{ index: IndexedItem[]; principalComponent: number[] | null }> => {
 	const index: IndexedItem[] = [];
-	const files = app.vault.getMarkdownFiles();
+	const allFiles = app.vault.getMarkdownFiles();
+	const files = allFiles.filter(
+		(file) =>
+			!foldersToIgnore.some(
+				(folder) =>
+					folder.trim() !== "" && file.path.startsWith(folder.trim()),
+			),
+	);
 	const documents: { file: string; content: string; words: string[] }[] = [];
 
 	// First pass: collect all documents and words
