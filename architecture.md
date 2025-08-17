@@ -58,8 +58,8 @@ The search functionality is modularized into several "providers," each responsib
 The semantic search functionality is a core feature of Clau. It works as follows:
 
 -   **Word Embeddings**: The plugin uses pre-trained GloVe word embeddings to represent words as vectors. These vectors capture the meaning of the words.
--   **Indexing**: The `SemanticSearchProvider` builds an index of all notes in the vault. For each note, it creates a "document vector" by averaging the vectors of all the words in the note.
--   **Querying**: When a user performs a semantic search, the plugin calculates a vector for the query in the same way (by averaging the vectors of the query words). It then uses cosine similarity to find the notes with the most similar vectors.
+-   **Chunking and Indexing**: The `SemanticSearchProvider` builds an index of all notes in the vault. Each note is first broken down into smaller "chunks," which correspond to paragraphs (separated by double newlines). Then, for each chunk, the plugin creates a "chunk vector" by averaging the vectors of all the words within that chunk. This provides more granular and contextually relevant search results than using a single vector for the entire note.
+-   **Querying**: When a user performs a semantic search, the plugin calculates a vector for the query in the same way (by averaging the vectors of the query words). It then uses cosine similarity to find the note chunks with the most similar vectors.
 -   **Custom Vectors**: Users can create custom vectors for out-of-vocabulary words using the "Vectorize selected word" command. This allows the plugin to learn new words and their meanings.
 
 ### 3. UI Components
