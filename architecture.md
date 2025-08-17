@@ -1,62 +1,85 @@
-# Architecture and Design Decisions
+# Clau Plugin Architecture
 
-This document tracks the architectural evolution of the Quick Switcher++ plugin, focusing on the design of the search index.
+This document provides a comprehensive overview of the Clau plugin's architecture, its core components, and how they interact.
 
-## V1: Simple In-Memory Inverse Index (Stable)
+## High-Level Overview
 
-This was the first functional version of the index and remains the most stable and memory-efficient implementation.
+Clau is an Obsidian plugin that provides a quick switcher with advanced search capabilities. Its primary features include:
 
-- **Design:** A `Map<string, SearchResult[]>` where the key is a full word (token) and the value is an array of notes that contain the word.
-- **Search:** The query is tokenized, and the index is looked up for each token. The intersection of the resulting note arrays provides the final matches.
-- **Pros:**
-    - **Low Memory Footprint:** The index only stores each word once. The memory usage is directly proportional to the number of unique words in the vault, which is very manageable.
-    - **Fast Indexing:** Building the index is quick and efficient.
-    - **Reliable:** The implementation is straightforward and not prone to memory explosions.
-- **Cons:**
-    - **No Prefix Search:** Users must type the full word to get a match. "plug" will not match "plugin". This makes the search less interactive than desired.
+-   **Fuzzy Search**: A fast, as-you-type search with typo tolerance.
+-   **Semantic Search**: A search that understands the meaning of your query, not just the keywords.
+-   **Heading Filtering**: A mode to filter the headings of the current note in real-time.
+-   **Multi-Select**: A tool to select multiple notes and copy their content.
+-   **Vault Visualization**: A UMAP-based visualization of your notes.
 
-## V2: Trie (Prefix Tree) - _Failed_
+## Folder Structure
 
-This was the first attempt to implement "search-as-you-type" prefix matching.
+The plugin's source code is organized into the following structure:
 
-- **Design:** A classic Trie data structure where each node represents a character. Paths from the root to a node form a prefix, and notes were stored at the node corresponding to the final character of each word.
-- **Search:** Traverse the Trie based on the query characters to find all words sharing that prefix.
-- **Outcome: Failure**
-    - **Reason:** Catastrophic memory consumption. The overhead of creating millions of `TrieNode` objects, combined with storing references to note objects in many different nodes, caused the plugin to quickly run out of memory, especially in a large vault. The implementation was not optimized for memory efficiency.
+```
+src/
+├── main.ts               # Plugin entry point
+├── commands.ts           # Command registrations
+├── events.ts             # Vault event listeners
+├── settings.ts           # Plugin settings and settings tab UI
+├── search/
+│   ├── providers/        # All search provider implementations
+│   ├── search.ts         # Core search interfaces and types
+│   ├── searcher.ts       # Semantic search logic
+│   └── search-provider.ts# Search provider interface
+├── semantic/
+│   ├── indexer.ts        # Semantic index building logic
+│   ├── model.ts          # Data models for semantic search
+│   ├── pruner.ts         # Logic for pruning GloVe vectors
+│   └── exporter.ts       # Vault vocabulary exporter
+└── ui/
+    ├── search-modal.ts       # The main search modal
+    ├── multi-select-modal.ts # The multi-select modal
+    ├── vectorize-modal.ts    # The modal for creating custom vectors
+    ├── heading-filter.ts     # The heading filter implementation
+    └── vault-viz/
+        ├── vault-viz-view.ts # The vault visualization view
+        └── viz-app.ts        # The Pixi.js application for the visualization
+```
 
-## V3: Prefix Map - _Failed_
+## Core Components
 
-This was the second attempt at prefix matching, intended to be simpler than the Trie.
+### 1. Search Providers
 
-- **Design:** A `Map<string, Set<string>>` where for every word (e.g., "plugin"), all of its prefixes ("p", "pl", "plu", "plug", "plugi", "plugin") were generated and stored as keys. The value was a set of paths to notes containing that prefix.
-- **Search:** A direct lookup of the query string in the map.
-- **Outcome: Failure**
-    - **Reason:** Even higher memory consumption than the Trie. The number of keys in the map exploded, as a single long word generates many prefixes. This approach proved to be the most memory-intensive and quickly hit the engine's limits for Map size.
+The search functionality is modularized into several "providers," each responsible for a specific type of search. This is orchestrated by the `CombinedSearchProvider`.
 
-## V4: Index-Key Scanning - _Failed_
+-   **`MiniSearchProvider`**: The primary search provider, using the `minisearch` library to provide fast, fuzzy, and prefix-based search.
+-   **`TitleContainsSearchProvider`**: A simple provider that searches for notes whose titles contain the query string.
+-   **`SemanticSearchProvider`**: Handles semantic search, which is triggered by a `,` prefix. It uses word embeddings (GloVe) to find notes that are semantically similar to the query.
+-   **`RecentFilesSearchProvider`**: Provides a list of recently modified files when the search query is empty.
 
-This was a third attempt at prefix matching, designed to be memory-efficient.
+### 2. Semantic Search
 
-- **Design:** Use the stable V1 inverse index. Instead of a direct lookup, the search query would iterate over _all keys_ (the unique words) in the index, performing a `startsWith()` check to find all matching words.
-- **Search:** For a query "plug", scan the entire dictionary of the vault for words like "plugin", "plugging", etc. Aggregate the notes from all matched keys.
-- **Outcome: Failure**
-    - **Reason:** Unacceptable UI latency. While memory-efficient, this approach shifted the performance bottleneck from memory to CPU. Iterating over tens of thousands of unique words on every single keystroke was too slow, resulting in a noticeable lag between typing and seeing results.
+The semantic search functionality is a core feature of Clau. It works as follows:
 
-## V5: MiniSearch Library (Recommended)
+-   **Word Embeddings**: The plugin uses pre-trained GloVe word embeddings to represent words as vectors. These vectors capture the meaning of the words.
+-   **Indexing**: The `SemanticSearchProvider` builds an index of all notes in the vault. For each note, it creates a "document vector" by averaging the vectors of all the words in the note.
+-   **Querying**: When a user performs a semantic search, the plugin calculates a vector for the query in the same way (by averaging the vectors of the query words). It then uses cosine similarity to find the notes with the most similar vectors.
+-   **Custom Vectors**: Users can create custom vectors for out-of-vocabulary words using the "Vectorize selected word" command. This allows the plugin to learn new words and their meanings.
 
-After multiple failed attempts to build a custom prefix/fuzzy search index, the decision was made to use a dedicated, third-party library.
+### 3. UI Components
 
-- **Design:** Integrate the `minisearch` library, a feature-rich, client-side search index. It handles indexing, prefix search, fuzzy matching, and result boosting internally. Our code is now a lightweight wrapper around this powerful library.
-- **Search:** Delegate all search operations to the `minisearch` instance. The query `minisearch.search(query, { prefix: true, fuzzy: 0.2 })` provides all desired features out-of-the-box.
-- **Key Learning:** The initial integration of `minisearch` failed due to extreme memory pressure. The root cause was a misconfiguration: the entire `content` of every note was being passed to `storeFields`. The correct approach is to **index** the `content` field but only **store** the fields required for display (e.g., `title`, `path`). This prevents the library from holding the entire vault's content in memory.
-- **Key Learning 2:** Startup performance was severely impacted by attempting to index non-markdown files (e.g., images). The indexing process must strictly filter for `.md` files to avoid reading and processing binary data, which causes extreme memory and CPU load.
-- **Pros:**
-    - **Feature-Rich:** Provides prefix search, fuzzy (typo-tolerant) search, and result boosting with no custom implementation effort.
-    - **High Performance:** When configured correctly, `minisearch` is highly optimized for this exact use case, balancing memory usage and search speed effectively.
-    - **Maintainable:** Offloads the most complex part of the plugin to a well-maintained external library, simplifying our codebase significantly.
-- **Cons:**
-    - **External Dependency:** Adds a new dependency to the project. (This is a very minor "con" given the benefits).
+-   **`ClauModal`**: The main search modal, which displays search results and handles user input.
+-   **`MultiSelectModal`**: A modal that allows users to select multiple notes and copy their content.
+-   **`VectorizeModal`**: A modal for creating custom word vectors.
+-   **`HeadingFilterManager`**: Manages the heading filtering mode, which is implemented as a CodeMirror 6 extension.
+-   **`VaultVizView`**: An Obsidian `ItemView` that hosts the vault visualization.
 
----
+## Data Flow
 
-## V4: Index-Key Scanning - _Failed_
+1.  **Initialization**: On load, the `ClauPlugin` class in `main.ts` initializes all the search providers and UI components. It also registers all commands and event listeners.
+2.  **User Input**: The user triggers a search by opening the `ClauModal`. As the user types, the `getSuggestions` method is called.
+3.  **Search Execution**: The `ClauModal` passes the query to the `CombinedSearchProvider`, which in turn delegates the search to the appropriate provider based on the query's prefix.
+4.  **Results Display**: The search results are returned to the `ClauModal`, which then renders them to the user.
+
+## Key Concepts
+
+-   **Decoupling**: The use of search providers decouples the search logic from the UI, making it easy to add new search types.
+-   **State Management**: The main `ClauPlugin` class holds the state of the plugin, including the settings and the instances of the search providers.
+-   **Modularity**: The code is organized into modules with specific responsibilities, which improves maintainability.
+-   **Extensibility**: The architecture is designed to be extensible. For example, adding a new search provider is a straightforward process.
