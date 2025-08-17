@@ -1,9 +1,9 @@
 // settings.ts
 import { App, PluginSettingTab, Setting } from "obsidian";
 import ClauPlugin from "./main";
-import { buildEnhancedPrunedVectors } from "./pruner";
-import { exportVaultVocabulary } from "./exporter";
-import { SemanticIndexingStrategy } from "./model";
+import { buildEnhancedPrunedVectors } from "./semantic/pruner";
+import { exportVaultVocabulary } from "./semantic/exporter";
+import { SemanticIndexingStrategy } from "./semantic/model";
 
 export interface ClauSettings {
 	ignoredFolders: string;

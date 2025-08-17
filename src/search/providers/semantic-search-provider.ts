@@ -1,8 +1,8 @@
 import { App, Notice, TFile, normalizePath } from "obsidian";
 import { ISearchProvider } from "../search-provider";
 import { SearchResult } from "../search";
-import { WordVectorMap, EmbeddingModel, CustomVector } from "../../model";
-import { IndexedItem, buildIndex as buildSemanticIndex } from "../../indexing/indexer";
+import { WordVectorMap, EmbeddingModel, CustomVector } from "../../semantic/model";
+import { IndexedItem, buildIndex as buildSemanticIndex } from "../../semantic/indexer";
 import { searchIndex } from "../searcher";
 import { ClauSettings } from "../../settings";
 

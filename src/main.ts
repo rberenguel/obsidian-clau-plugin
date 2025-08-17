@@ -17,6 +17,9 @@ import { RecentFilesSearchProvider } from "./search/providers/recent-files-provi
 import { VectorizeModal } from "./ui/vectorize-modal";
 import { HeadingFilterManager } from "./ui/heading-filter";
 
+import { registerCommands } from "./commands";
+import { registerEvents } from "./events";
+
 export default class ClauPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
 	titleContainsSearchProvider: TitleContainsSearchProvider;
@@ -65,112 +68,8 @@ export default class ClauPlugin extends Plugin {
 			(leaf) => new VaultVizView(leaf, this),
 		);
 
-		this.addCommand({
-			id: "open-clau-minisearch",
-			name: "Open Search",
-			callback: () => {
-				new ClauModal(
-					this.app,
-					this.combinedSearchProvider,
-					this.recentFilesSearchProvider, // Passed new provider
-					this,
-					"search? also: , for semantic, ? for private, ! to ignore privacy, space for title, . for fuzzy, -term, -/path",
-					this.settings,
-				).open();
-			},
-		});
-
-		this.addCommand({
-			id: "rebuild-clau-index",
-			name: "Re-build index",
-			callback: async () => {
-				await this.combinedSearchProvider.build();
-				this.settings.lastRebuildIndexTime = Date.now();
-				await this.saveSettings();
-				new Notice("MiniSearch index has been manually rebuilt.");
-			},
-		});
-
-		this.addCommand({
-			id: "open-clau-multi-select",
-			name: "Select files to copy content",
-			callback: () => {
-				new MultiSelectModal(
-					this.app,
-					this,
-					this.combinedSearchProvider,
-					this.selectionMap,
-				).open();
-			},
-		});
-
-		this.addCommand({
-			id: "open-clau-vault-viz",
-			name: "Open Vault Visualization",
-			callback: async () => {
-				this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
-				const newLeaf = this.app.workspace.getLeaf("tab");
-				await newLeaf.setViewState({
-					type: VAULT_VIZ_VIEW_TYPE,
-					active: true,
-				});
-				this.app.workspace.revealLeaf(newLeaf);
-			},
-		});
-
-		this.addCommand({
-			id: "vectorize-selected-word",
-			name: "Vectorize selected word",
-			editorCallback: (editor: Editor) => {
-				const selection = editor.getSelection();
-				if (!selection.trim()) {
-					new Notice("Please select a word to vectorize.");
-					return;
-				}
-				new VectorizeModal(this.app, this, selection.trim()).open();
-			},
-		});
-
-		this.addCommand({
-			id: "generate-vectors-from-file",
-			name: "Generate vectors from active file",
-			editorCallback: async (editor: Editor) => {
-				const file = this.app.workspace.getActiveFile();
-				if (!file) {
-					new Notice("No active file selected.");
-					return;
-				}
-				new Notice(`Generating vectors from ${file.basename}...`);
-				const content = await this.app.vault.read(file);
-				await this.semanticSearchProvider.generateVectorsFromFileContent(
-					content,
-				);
-			},
-		});
-		this.registerEvent(
-			this.app.vault.on("create", (file) => {
-				if (file instanceof TFile)
-					this.combinedSearchProvider.add(file);
-			}),
-		);
-		this.registerEvent(
-			this.app.vault.on("delete", (file) => {
-				if (file instanceof TFile)
-					this.combinedSearchProvider.remove(file);
-			}),
-		);
-		this.registerEvent(
-			this.app.vault.on("modify", (file) => {
-				if (file instanceof TFile)
-					this.combinedSearchProvider.update(file);
-			}),
-		);
-		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => {
-				if (file instanceof TFile)
-					this.combinedSearchProvider.rename(file, oldPath);
-			}),
-		);
+		registerCommands(this);
+		registerEvents(this);
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
 	}
