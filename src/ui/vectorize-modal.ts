@@ -1,6 +1,6 @@
 // src/vectorize-modal.ts
 import { App, Modal, Notice, TextAreaComponent } from "obsidian";
-import ClauPlugin from "./main";
+import ClauPlugin from "../main";
 
 export class VectorizeModal extends Modal {
 	plugin: ClauPlugin;

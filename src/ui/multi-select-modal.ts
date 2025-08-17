@@ -6,9 +6,9 @@ import {
 	setIcon,
 	setTooltip,
 } from "obsidian";
-import { ISearchProvider } from "./search-provider";
-import { SearchResult } from "./search";
-import ClauPlugin from "main";
+import { ISearchProvider } from "../search/search-provider";
+import { SearchResult } from "../search/search";
+import ClauPlugin from "../main";
 
 export class MultiSelectModal extends SuggestModal<SearchResult> {
 	constructor(

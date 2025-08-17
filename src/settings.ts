@@ -3,7 +3,6 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import ClauPlugin from "./main";
 import { buildEnhancedPrunedVectors } from "./pruner";
 import { exportVaultVocabulary } from "./exporter";
-
 import { SemanticIndexingStrategy } from "./model";
 
 export interface ClauSettings {

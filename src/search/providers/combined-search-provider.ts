@@ -1,5 +1,5 @@
-import { ISearchProvider } from "./search-provider";
-import { SearchResult } from "./search";
+import { ISearchProvider } from "../search-provider";
+import { SearchResult } from "../search";
 import { MiniSearchProvider } from "./minisearch-provider";
 import { TitleContainsSearchProvider } from "./title-contains-search-provider";
 import { SemanticSearchProvider } from "./semantic-search-provider";

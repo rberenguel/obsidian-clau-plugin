@@ -75,7 +75,7 @@ const mainPluginConfig = {
 };
 
 const vizAppConfig = {
-	entryPoints: ["viz-app.ts"],
+	entryPoints: ["src/ui/vault-viz/viz-app.ts"],
 	bundle: true,
 	format: "iife",
 	target: "es2020",

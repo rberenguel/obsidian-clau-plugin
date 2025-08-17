@@ -1,18 +1,21 @@
 // main.ts
 import { Plugin, TFile, Notice, normalizePath, Editor } from "obsidian";
-import { SearchResult } from "./search";
-import { MiniSearchProvider } from "./minisearch-provider";
-import { TitleContainsSearchProvider } from "./title-contains-search-provider";
-import { CombinedSearchProvider } from "./combined-search-provider";
-import { MultiSelectModal } from "./multi-select-modal";
-import { SemanticSearchProvider } from "./semantic-search-provider";
-import { getDocumentVector } from "./searcher";
+import { SearchResult } from "./search/search";
+import { MiniSearchProvider } from "./search/providers/minisearch-provider";
+import { TitleContainsSearchProvider } from "./search/providers/title-contains-search-provider";
+import { CombinedSearchProvider } from "./search/providers/combined-search-provider";
+import { MultiSelectModal } from "./ui/multi-select-modal";
+import { SemanticSearchProvider } from "./search/providers/semantic-search-provider";
+import { getDocumentVector } from "./search/searcher";
 import { ClauSettings, DEFAULT_SETTINGS, ClauSettingTab } from "./settings";
-import { VAULT_VIZ_VIEW_TYPE, VaultVizView } from "./vault-viz-view";
-import { ClauModal } from "./search-modal";
-import { RecentFilesSearchProvider } from "./recent-files-provider";
-import { VectorizeModal } from "./vectorize-modal";
-import { HeadingFilterManager } from "./heading-filter";
+import {
+	VAULT_VIZ_VIEW_TYPE,
+	VaultVizView,
+} from "./ui/vault-viz/vault-viz-view";
+import { ClauModal } from "./ui/search-modal";
+import { RecentFilesSearchProvider } from "./search/providers/recent-files-provider";
+import { VectorizeModal } from "./ui/vectorize-modal";
+import { HeadingFilterManager } from "./ui/heading-filter";
 
 export default class ClauPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;

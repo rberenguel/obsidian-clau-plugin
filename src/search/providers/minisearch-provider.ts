@@ -1,7 +1,7 @@
 import { App, TFile } from "obsidian";
 import MiniSearch from "minisearch";
-import { ISearchProvider } from "./search-provider";
-import { SearchResult } from "./search";
+import { ISearchProvider } from "../search-provider";
+import { SearchResult } from "../search";
 
 interface ClauSettings {
 	ignoredFolders: string;

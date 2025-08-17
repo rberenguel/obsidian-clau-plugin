@@ -1,9 +1,9 @@
 // search-modal.ts
 import { App, MarkdownRenderer, Plugin, SuggestModal, TFile } from "obsidian";
-import { SearchResult } from "./search";
-import { ISearchProvider } from "./search-provider";
-import { ClauSettings } from "./settings";
-import ClauPlugin from "./main";
+import { SearchResult } from "../search/search";
+import { ISearchProvider } from "../search/search-provider";
+import { ClauSettings } from "../settings";
+import ClauPlugin from "../main";
 
 export class ClauModal extends SuggestModal<SearchResult> {
 	private searchProvider: ISearchProvider;

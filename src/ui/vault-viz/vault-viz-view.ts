@@ -6,8 +6,8 @@ import {
 	setIcon,
 	Notice,
 } from "obsidian";
-import ClauPlugin from "./main";
-import { SearchResult } from "./search";
+import ClauPlugin from "../../main";
+import { SearchResult } from "../../search/search";
 
 export const VAULT_VIZ_VIEW_TYPE = "clau-vault-viz-view";
 

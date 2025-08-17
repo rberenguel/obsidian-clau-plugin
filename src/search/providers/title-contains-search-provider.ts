@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
-import { ISearchProvider } from "./search-provider";
-import { SearchResult } from "./search";
+import { ISearchProvider } from "../search-provider";
+import { SearchResult } from "../search";
 
 export class TitleContainsSearchProvider implements ISearchProvider {
 	private app: App;

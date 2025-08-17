@@ -1,5 +1,5 @@
-import { IndexedItem } from "./indexer";
-import { WordVectorMap } from "./model";
+import { IndexedItem } from "../indexing/indexer";
+import { WordVectorMap } from "../model";
 
 // Re-using the same stopword list from indexer.ts
 const STOPWORDS = new Set([

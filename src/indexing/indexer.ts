@@ -1,6 +1,6 @@
 // src/indexer.ts
 import { App } from "obsidian";
-import { WordVectorMap, SemanticIndexingStrategy } from "./model";
+import { WordVectorMap, SemanticIndexingStrategy } from "../model";
 import { PCA } from "ml-pca";
 
 // A common list of English stopwords

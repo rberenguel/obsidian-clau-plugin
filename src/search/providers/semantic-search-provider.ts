@@ -1,10 +1,10 @@
 import { App, Notice, TFile, normalizePath } from "obsidian";
-import { ISearchProvider } from "./search-provider";
-import { SearchResult } from "./search";
-import { WordVectorMap, EmbeddingModel, CustomVector } from "./model";
-import { IndexedItem, buildIndex as buildSemanticIndex } from "./indexer";
-import { searchIndex } from "./searcher";
-import { ClauSettings } from "settings";
+import { ISearchProvider } from "../search-provider";
+import { SearchResult } from "../search";
+import { WordVectorMap, EmbeddingModel, CustomVector } from "../../model";
+import { IndexedItem, buildIndex as buildSemanticIndex } from "../../indexing/indexer";
+import { searchIndex } from "../searcher";
+import { ClauSettings } from "../../settings";
 
 const INDEX_PATH = ".obsidian/plugins/clau/semantic-index.json";
 const CUSTOM_VECTORS_PATH = ".obsidian/plugins/clau/custom-vectors.json";
