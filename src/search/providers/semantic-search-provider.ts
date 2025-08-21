@@ -301,19 +301,14 @@ export class SemanticSearchProvider implements ISearchProvider {
 			const dimension = firstVector.length;
 
 			for (const customVector of customVectors) {
-				if (
-					customVector.baseModel === baseModelIdentifier &&
-					customVector.dimension === dimension
-				) {
+				if (customVector.dimension === dimension) {
 					this.vectors.set(customVector.word, customVector.vector);
 				} else {
 					new Notice(
-						`Skipping custom vector for "${customVector.word}" due to model/dimension mismatch.`,
+						`Skipping custom vector for "${customVector.word}" due to dimension mismatch.`,
 					);
 					console.warn("Custom vector mismatch:", {
 						word: customVector.word,
-						expectedModel: baseModelIdentifier,
-						actualModel: customVector.baseModel,
 						expectedDim: dimension,
 						actualDim: customVector.dimension,
 					});
