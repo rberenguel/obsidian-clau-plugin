@@ -5,8 +5,7 @@ import ClauPlugin from "./main";
 export function registerEvents(plugin: ClauPlugin) {
 	plugin.registerEvent(
 		plugin.app.vault.on("create", (file) => {
-			if (file instanceof TFile)
-				plugin.combinedSearchProvider.add(file);
+			if (file instanceof TFile) plugin.combinedSearchProvider.add(file);
 		}),
 	);
 	plugin.registerEvent(

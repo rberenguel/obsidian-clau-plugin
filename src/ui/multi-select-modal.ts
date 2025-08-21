@@ -88,6 +88,15 @@ export class MultiSelectModal extends SuggestModal<SearchResult> {
 		const copyButton = buttonContainer.createEl("button", {
 			cls: "mod-cta",
 		});
+		console.log((this.app as any).plugins);
+		const serverPlugin = (this.app as any).plugins.plugins["Cambrer"];
+		let browseOpenButton: HTMLButtonElement | undefined = undefined;
+		if (serverPlugin) {
+			browseOpenButton = buttonContainer.createEl("button", {
+				cls: "mod-cta",
+			});
+		}
+
 		const clearAllButton = buttonContainer.createEl("button", {
 			text: "Clear All",
 			cls: "clau-clear-all-btn",
@@ -123,6 +132,10 @@ export class MultiSelectModal extends SuggestModal<SearchResult> {
 			copyButton.setText(`Copy Content of ${count} File(s)`);
 			listContainer.style.display = hasSelection ? "block" : "none";
 			copyButton.disabled = !hasSelection;
+			if (browseOpenButton) {
+				browseOpenButton.setText(`Serve ${count} files`);
+				browseOpenButton.disabled = !hasSelection;
+			}
 			clearAllButton.disabled = !hasSelection;
 		};
 
@@ -153,6 +166,8 @@ export class MultiSelectModal extends SuggestModal<SearchResult> {
 		}
 
 		copyButton.onClickEvent(() => this.copyContent());
+		if (browseOpenButton !== undefined)
+			browseOpenButton.onClickEvent(() => this.serveContent());
 		clearAllButton.onClickEvent(() => {
 			const pathsToDeselect = Array.from(this.selectionMap.keys());
 			this.selectionMap.clear();
@@ -187,6 +202,26 @@ export class MultiSelectModal extends SuggestModal<SearchResult> {
 
 		await navigator.clipboard.writeText(combinedContent);
 		new Notice(`Copied content of ${fileCount} file(s).`);
+		this.selectionMap.clear();
+		this.close();
+	}
+	private serveContent() {
+		if (this.selectionMap.size === 0) {
+			new Notice("No files selected.");
+			return;
+		}
+		this.plugin.lastMultiSelectQuery = "";
+
+		const selectedFiles = Array.from(this.selectionMap.values()).map(
+			(v) => this.app.vault.getAbstractFileByPath(v.path) as TFile,
+		);
+		const serverPlugin = (this.app as any).plugins.plugins["Cambrer"];
+		if (serverPlugin && serverPlugin.serveMultipleFiles) {
+			// 'selectedFiles' would be your array of TFile objects from the search results
+			serverPlugin.serveMultipleFiles(selectedFiles);
+		} else {
+			new Notice("The Cambrer server plugin is not available.");
+		}
 		this.selectionMap.clear();
 		this.close();
 	}

@@ -31,6 +31,7 @@ export default class ClauPlugin extends Plugin {
 	reindexIntervalId: number | null = null;
 	selectionMap: Map<string, SearchResult> = new Map();
 	public lastMultiSelectQuery: string = "";
+	public getDocumentVector: any;
 
 	async onload() {
 		this.app.workspace.detachLeavesOfType(VAULT_VIZ_VIEW_TYPE);
@@ -72,6 +73,19 @@ export default class ClauPlugin extends Plugin {
 		registerEvents(this);
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
+
+		this.getDocumentVector = (() => {
+			let vectors: any;
+			return async (text: string) => {
+				if (!vectors)
+					vectors = await this.semanticSearchProvider.getVectors();
+				if (!vectors) {
+					new Notice("Vectors not loaded!");
+					return false;
+				}
+				return getDocumentVector(text, vectors);
+			};
+		})();
 	}
 
 	async ensureVizData(): Promise<boolean> {
