@@ -1,6 +1,6 @@
 {
 	"name": "clau",
-	"version": "0.5.7",
+	"version": "0.5.8",
 	"description": "A quick switcher with fuzzy search across all notes.",
 	"main": "main.js",
 	"scripts": {
