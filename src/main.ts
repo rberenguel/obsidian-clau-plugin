@@ -12,13 +12,14 @@ import {
 	VAULT_VIZ_VIEW_TYPE,
 	VaultVizView,
 } from "./ui/vault-viz/vault-viz-view";
-import { ClauModal } from "./ui/search-modal";
+
 import { RecentFilesSearchProvider } from "./search/providers/recent-files-provider";
-import { VectorizeModal } from "./ui/vectorize-modal";
+
 import { HeadingFilterManager } from "./ui/heading-filter";
 
 import { registerCommands } from "./commands";
 import { registerEvents } from "./events";
+import { WordVectorMap } from "semantic/model";
 
 export default class ClauPlugin extends Plugin {
 	miniSearchProvider: MiniSearchProvider;
@@ -74,19 +75,29 @@ export default class ClauPlugin extends Plugin {
 
 		this.addSettingTab(new ClauSettingTab(this.app, this));
 
+		if (this.settings.loadVectorsOnStart) {
+			this.app.workspace.onLayoutReady(() => {
+				this.semanticSearchProvider.getVectors();
+			});
+		}
+
 		this.getDocumentVector = (() => {
-			let vectors: any;
 			return async (text: string) => {
-				if (!vectors)
-					vectors = await this.semanticSearchProvider.getVectors();
-				if (!vectors) {
+				if (!this.semanticSearchProvider.vectorsLoaded())
+					await this.semanticSearchProvider.getVectors();
+				if (!this.semanticSearchProvider.vectorsLoaded()) {
 					new Notice("Vectors not loaded!");
 					return false;
 				}
-				return getDocumentVector(text, vectors);
+				return getDocumentVector(
+					text,
+					this.semanticSearchProvider.vectors as WordVectorMap,
+				);
 			};
 		})();
 	}
+
+	onLayoutReady(): void {}
 
 	async ensureVizData(): Promise<boolean> {
 		const dirPath = `clau-viz`;

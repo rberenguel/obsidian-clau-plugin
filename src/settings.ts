@@ -11,6 +11,7 @@ export interface ClauSettings {
 	privateFolders: string;
 	reindexInterval: number;
 	enableSemanticSearch: boolean;
+	loadVectorsOnStart: boolean;
 	glovePathFormat: string;
 	gloveFileCount: number;
 	prunedGlovePath: string;
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: ClauSettings = {
 	privateFolders: "",
 	reindexInterval: 10,
 	enableSemanticSearch: true,
+	loadVectorsOnStart: false,
 	glovePathFormat: "embeddings/glove.6B.100d_part_{}.txt",
 	gloveFileCount: 4,
 	prunedGlovePath: "embeddings/enhanced_pruned_vectors.txt",
@@ -142,6 +144,21 @@ export class ClauSettingTab extends PluginSettingTab {
 			semanticSettingsEl.style.opacity = "0.5";
 			semanticSettingsEl.style.pointerEvents = "none";
 		}
+
+		new Setting(semanticSettingsEl)
+			.setName("Load vectors on start")
+			.setDesc(
+				"Loads the vector (asynchronously) when Obsidian starts.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.loadVectorsOnStart)
+					.onChange(async (value) => {
+						this.plugin.settings.loadVectorsOnStart = value;
+						await this.plugin.saveSettings();
+						this.display();
+					}),
+			);
 
 		new Setting(semanticSettingsEl)
 			.setName("Indexing Strategy")

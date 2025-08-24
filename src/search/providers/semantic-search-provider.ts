@@ -46,7 +46,7 @@ function createContextSnippet(
 export class SemanticSearchProvider implements ISearchProvider {
 	private app: App;
 	settings: ClauSettings;
-	private vectors: WordVectorMap | null = null;
+	public vectors: WordVectorMap | null = null;
 	private index: IndexedItem[] | null = null;
 	private sifPrincipalComponent: number[] | null = null;
 
@@ -107,6 +107,10 @@ export class SemanticSearchProvider implements ISearchProvider {
 				highlightWord: item.highlightWord,
 			};
 		});
+	}
+
+	public vectorsLoaded() {
+		return this.vectors !== null;
 	}
 
 	async getVectors(): Promise<WordVectorMap | null> {
